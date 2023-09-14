@@ -31,9 +31,11 @@ Use `brew` to install and upgrade conda:
 
 ## Environment
 
-`conda create -y --name dg-3.10 python=3.10`
-
-`
+```
+# To create an environment, use
+#
+#     $ conda create -y --name dg-3.10 --file requirements.txt python=3.10
+#
 # To activate this environment, use
 #
 #     $ conda activate dg-3.10
@@ -41,13 +43,37 @@ Use `brew` to install and upgrade conda:
 # To deactivate an active environment, use
 #
 #     $ conda deactivate
-`
+```
 
 ### git with ssh
-
+See: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
 ```
-# See: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
 ssh-keygen -t ed25519 -C "your@email.com"
 eval `ssh-agent`
 ssh-add
 ```
+
+### coinbase setup
+See: 
+https://developers.coinbase.com/api/v2
+https://developers.coinbase.com/docs/wallet/notifications
+https://www.coinbase.com/settings/api
+
+```
+NOTE: API keys give direct access to your account, so be sure to protect them.
+Never share your keys with anyone, and store them only in secure places.
+Connecting your keys to 3rd-party websites could compromise your account security.
+```
+
+Create a file named `.env`.  In that file put the API key and secret.
+```
+cat ./.env
+export CB-API-KEY=Put-your-real-key-here
+export CB-API-SECRET=Put-your-real-secret-here
+```
+
+To check your coinbase API connection:
+`python ./coinbase-check.py`
+
+
+
