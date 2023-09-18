@@ -34,7 +34,7 @@ Use `brew` to install and upgrade conda:
 ```
 # To create an environment, use
 #
-#     $ conda create -y --name dg-3.10 --file requirements.txt python=3.10
+#     $ conda env create --name dg-3.10 --file environment.yaml 
 #
 # To activate this environment, use
 #
