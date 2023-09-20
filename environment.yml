@@ -1,0 +1,8 @@
+dependencies:
+- python>=3.10
+- pip
+- pandas
+- python-dotenv
+- requests
+- pip:
+  - gemini_api
