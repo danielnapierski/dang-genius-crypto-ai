@@ -9,7 +9,7 @@ Trade crypto using AI
 
 ```
 % conda --version
-conda 23.5.2
+conda 23.7.4
 ```
 
 Use `brew` to install and upgrade conda:
@@ -34,7 +34,7 @@ Use `brew` to install and upgrade conda:
 ```
 # To create an environment, use
 #
-#     $ conda env create --name dg-3.10 --file environment.yaml 
+#     $ conda env create --name dg-3.11 --file environment.yml 
 #
 # To activate this environment, use
 #
