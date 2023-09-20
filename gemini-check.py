@@ -13,9 +13,12 @@ auth = Authentication(
 )
 
 if __name__ == "__main__":
-    x = FundManagement.get_available_balances(
-        auth=auth
+#    x = FundManagement.get_available_balances(
+#        auth=auth
+    x = FundManagement.get_notional_balances(
+        auth=auth, currency='ETH'
     )
+# USD
     y = x[0]
     print(dir(y))
     print(getattr(y,'amount'))
