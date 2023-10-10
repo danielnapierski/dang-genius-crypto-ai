@@ -2,6 +2,7 @@ dependencies:
 - python>=3.11
 - pip
 - pip:
+  - coinbasepro
   - gemini_api
   - krakenex
   - pandas
