@@ -1,24 +1,26 @@
-from requests.exceptions import HTTPError
+import pprint
+
 import coinbasepro as cbp
 import krakenex
-import pprint
 from gemini_api.endpoints.public import Public
+from requests.exceptions import HTTPError
+
 kraken = krakenex.API()
+kraken_pair: str = 'XXBTZUSD'
 coinbase = cbp.PublicClient()
 gemini = Public()
 
 try:
-
-    recentTrades = kraken.query_public('Trades',{'pair': 'XXBTZUSD'})
-    dir(recentTrades)
+    recentTrades = kraken.query_public('Trades', {'pair': kraken_pair})
     print('Kraken BTC\nLast:')
-    pprint.pprint(recentTrades.get('result').get('XXBTZUSD')[0][0])
+    pprint.pprint(recentTrades.get('result').get(kraken_pair)[0][0])
 
-    response = kraken.query_public('Depth', {'pair': 'XXBTZUSD', 'count': '10'})
+    kraken_public_result = (
+        kraken.query_public('Depth', {'pair': kraken_pair, 'count': '10'}).get('result').get(kraken_pair))
     print('Ask:')
-    pprint.pprint(response.get('result').get('XXBTZUSD').get('asks')[0][0])
+    pprint.pprint(kraken_public_result.get('asks')[0][0])
     print('Bid:')
-    pprint.pprint(response.get('result').get('XXBTZUSD').get('bids')[0][0])
+    pprint.pprint(kraken_public_result.get('bids')[0][0])
 
     print('\n')
     print('Coinbase BTC\nLast:')
@@ -27,7 +29,7 @@ try:
     cb_order_book = coinbase.get_product_order_book('BTC-USD')
     pprint.pprint(cb_order_book.get('asks')[0][0])
     print('Bid:')
-    pprint.pprint(cb_order_book.get('bids')[0][0]) 
+    pprint.pprint(cb_order_book.get('bids')[0][0])
 
     print('\n')
     print('Gemini BTC\nLast:')
@@ -40,4 +42,3 @@ try:
 
 except HTTPError as e:
     print(str(e))
-

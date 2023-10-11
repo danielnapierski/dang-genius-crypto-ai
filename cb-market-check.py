@@ -1,6 +1,7 @@
 import pprint
-#pprint.pprint('TODO: show last trade, bid and ask at coinbase')
+
 import coinbasepro as cbp
+
 public_client = cbp.PublicClient()
 
 # Get the order book at the default level.
