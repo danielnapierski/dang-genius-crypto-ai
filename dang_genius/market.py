@@ -62,4 +62,3 @@ def market_check() -> object:
         print(f'HTTP_ERROR: {e}')
 
 
-market_check()
