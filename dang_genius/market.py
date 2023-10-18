@@ -3,6 +3,8 @@ import krakenex
 import numpy as np
 from gemini_api.endpoints.public import Public
 from requests.exceptions import HTTPError
+from dang_genius.util import BUY_BTC_HERE_SPENDING_USD as BUY_KEY
+from dang_genius.util import SELL_BTC_HERE_RECEIVING_USD as SELL_KEY
 
 kraken = krakenex.API()
 kraken_pair: str = 'XXBTZUSD'
@@ -10,13 +12,14 @@ coinbase = cbp.PublicClient()
 cb_pair: str = 'BTC-USD'
 gemini = Public()
 ge_pair: str = 'BTCUSD'
-FEE_ESTIMATE: float = 0.0001
+FEE_ESTIMATE: float = 0.0005
 asks: dict = {}
 bids: dict = {}
 
 
-def market_check() -> object:
+def market_check() -> dict:
     try:
+        result = {}
         kraken_recent_trades = kraken.query_public('Trades', {'pair': kraken_pair})
         kraken_last_trade = float(kraken_recent_trades.get('result').get(kraken_pair)[0][0])
         kraken_public_result = (
@@ -54,10 +57,12 @@ def market_check() -> object:
 
         if opportunity:
             buy_ex = asks[min_ask]
+            result[BUY_KEY] = buy_ex
             sell_ex = bids[max_bid]
-            print(f'BUY BTC at {buy_ex}\nSELL BTC at {sell_ex}')
+            result[SELL_KEY] = sell_ex
         else:
             print(f'spread is less than estimated fees {(FEE_ESTIMATE * min_ask):.5f}')
+        return result
 
     except HTTPError as e:
         print(f'HTTP_ERROR: {e}')
