@@ -78,8 +78,10 @@ export CB-API-SECRET=Put-your-real-secret-here
 To check your coinbase API connection:
 `python ./coinbase-check.py`
 
+
 ### dang_genius package
 
 ```
+ python -c 'from dang_genius.wallet import wallet_summary as ws; print(ws())'
  python -c 'from dang_genius.market import market_check as mc; mc()'
 ```
