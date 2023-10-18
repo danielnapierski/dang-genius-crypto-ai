@@ -10,7 +10,7 @@ coinbase = cbp.PublicClient()
 cb_pair: str = 'BTC-USD'
 gemini = Public()
 ge_pair: str = 'BTCUSD'
-FEE_ESTIMATE: float = 0.00000005
+FEE_ESTIMATE: float = 0.0001
 asks: dict = {}
 bids: dict = {}
 
@@ -47,9 +47,10 @@ def market_check() -> object:
         max_bid = np.max([kraken_bid, coinbase_bid, gemini_bid])
         min_ask = np.min([kraken_ask, coinbase_ask, gemini_ask])
         spread = max_bid - min_ask
-        opportunity = spread > (min_ask * FEE_ESTIMATE)
+        fee = min_ask * FEE_ESTIMATE
+        opportunity = spread > fee
         print()
-        print(f'max_bid: {max_bid:.5f}\tmin_ask: {min_ask:.5f}\tOpp? {opportunity}\tSpread: {spread:.5f}')
+        print(f'max_bid: {max_bid:.5f}\tmin_ask: {min_ask:.5f}\tOpp? {opportunity}\tSpread: {spread:.5f}\tFee: {fee:.5f}')
 
         if opportunity:
             buy_ex = asks[min_ask]
