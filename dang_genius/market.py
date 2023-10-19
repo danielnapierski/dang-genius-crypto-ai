@@ -6,13 +6,18 @@ from requests.exceptions import HTTPError
 from dang_genius.util import BUY_BTC_HERE_SPENDING_USD as BUY_KEY
 from dang_genius.util import SELL_BTC_HERE_RECEIVING_USD as SELL_KEY
 
+from datetime import datetime
+
+# datetime object containing current date and time
+now = datetime.now()
+
 kraken = krakenex.API()
 kraken_pair: str = 'XXBTZUSD'
 coinbase = cbp.PublicClient()
 cb_pair: str = 'BTC-USD'
 gemini = Public()
 ge_pair: str = 'BTCUSD'
-FEE_ESTIMATE: float = 0.0005
+FEE_ESTIMATE: float = 0.0008
 asks: dict = {}
 bids: dict = {}
 
@@ -20,40 +25,40 @@ bids: dict = {}
 def market_check() -> dict:
     try:
         result = {}
-        kraken_recent_trades = kraken.query_public('Trades', {'pair': kraken_pair})
-        kraken_last_trade = float(kraken_recent_trades.get('result').get(kraken_pair)[0][0])
+#        kraken_recent_trades = kraken.query_public('Trades', {'pair': kraken_pair})
+#        kraken_last_trade = float(kraken_recent_trades.get('result').get(kraken_pair)[0][0])
         kraken_public_result = (
             kraken.query_public('Depth', {'pair': kraken_pair, 'count': '10'}).get('result').get(kraken_pair))
         kraken_ask: float = float(kraken_public_result.get('asks')[0][0])
         asks[kraken_ask] = 'kraken'
         kraken_bid: float = float(kraken_public_result.get('bids')[0][0])
         bids[kraken_bid] = 'kraken'
-        print(f'Kr BTC\tLast: {kraken_last_trade:.5f}\tAsk: {kraken_ask:.5f}\tBid: {kraken_bid:.5f}')
+#        print(f'Kr BTC\tAsk: {kraken_ask:.5f}\tBid: {kraken_bid:.5f}')
 
-        coinbase_last = float('-1000.0')
+#        coinbase_last = float('-1000.0')
         coinbase_order_book = coinbase.get_product_order_book(cb_pair)
         coinbase_ask: float = float(coinbase_order_book.get('asks')[0][0])
         asks[coinbase_ask] = 'coinbase'
         coinbase_bid: float = float(coinbase_order_book.get('bids')[0][0])
         bids[coinbase_bid] = 'coinbase'
 
-        print(f'Cb BTC\tLast: {coinbase_last:.5f}\tAsk: {coinbase_ask:.5f}\tBid: {coinbase_bid:.5f}')
+#        print(f'Cb BTC\tAsk: {coinbase_ask:.5f}\tBid: {coinbase_bid:.5f}')
 
         gemini_ticker = gemini.get_ticker(ge_pair)
-        gemini_last = float(gemini_ticker.get('last'))
+#        gemini_last = float(gemini_ticker.get('last'))
         gemini_ask: float = float(gemini_ticker.get('ask'))
         asks[gemini_ask] = 'gemini'
         gemini_bid: float = float(gemini_ticker.get('bid'))
         bids[gemini_bid] = 'gemini'
-        print(f'Ge BTC\tLast: {gemini_last:.5f}\tAsk: {gemini_ask:.5f}\tBid: {gemini_bid:.5f}')
+#        print(f'Ge BTC\tAsk: {gemini_ask:.5f}\tBid: {gemini_bid:.5f}')
 
         max_bid = np.max([kraken_bid, coinbase_bid, gemini_bid])
         min_ask = np.min([kraken_ask, coinbase_ask, gemini_ask])
         spread = max_bid - min_ask
         fee = min_ask * FEE_ESTIMATE
         opportunity = spread > fee
-        print()
-        print(f'max_bid: {max_bid:.5f}\tmin_ask: {min_ask:.5f}\tOpp? {opportunity}\tSpread: {spread:.5f}\tFee: {fee:.5f}')
+ #       print()
+        print(f'{datetime.now()} max_bid: {max_bid:.5f}\tmin_ask: {min_ask:.5f}\tOpp? {opportunity}\tSpread: {spread:.5f}\tFee: {fee:.5f}')
 
         if opportunity:
             buy_ex = asks[min_ask]
@@ -61,7 +66,8 @@ def market_check() -> dict:
             sell_ex = bids[max_bid]
             result[SELL_KEY] = sell_ex
         else:
-            print(f'spread is less than estimated fees {(FEE_ESTIMATE * min_ask):.5f}')
+            result['MSG'] = f'spread {spread:.5f} is less than fees {fee:.5f}'
+#            print(f'spread is less than estimated fees {(FEE_ESTIMATE * min_ask):.5f}')
         return result
 
     except HTTPError as e:
