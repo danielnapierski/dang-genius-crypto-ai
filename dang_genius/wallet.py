@@ -10,6 +10,9 @@ from gemini_api.authentication import Authentication as GeAuth
 from gemini_api.endpoints.fund_management import FundManagement
 from gemini_api.endpoints.fund_management import FundManagement as GeFM
 
+from dang_genius.coinbaseexchange import CoinbaseExchange
+from dang_genius.geminiexchange import GeminiExchange
+from dang_genius.krakenexchange import KrakenExchange
 # TODO: currently not using import coinbasepro as cbp may need pro api key?
 
 import pandas as pd
@@ -107,15 +110,15 @@ def gemini_get_usd_balance() -> float:
 
 
 def wallet_summary() -> dict:
-    results = {'coinbase': coinbase_get_balances(), 'kraken': kraken_get_balances()}
+    results = {CoinbaseExchange: coinbase_get_balances(), KrakenExchange: kraken_get_balances()}
 
     gemini_btc = gemini_get_btc_balance()
     time.sleep(1)
     gemini_usd = gemini_get_usd_balance()
-    results['gemini'] = {'BTC': gemini_btc, 'USD': gemini_usd}
+    results[GeminiExchange] = {'BTC': gemini_btc, 'USD': gemini_usd}
 
-    btc_total = results['coinbase'].get('BTC') + results['kraken'].get('BTC') + gemini_btc
-    usd_total = results['coinbase'].get('USD') + results['kraken'].get('USD') + gemini_usd
+    btc_total = results[CoinbaseExchange].get('BTC') + results[KrakenExchange].get('BTC') + gemini_btc
+    usd_total = results[CoinbaseExchange].get('USD') + results[KrakenExchange].get('USD') + gemini_usd
     results['total'] = {'BTC': btc_total, 'USD': usd_total}
 
     return results
@@ -128,7 +131,7 @@ def wallet_summary() -> dict:
 # TODO: coinbasePro api key?
 #    print(accounts)
 
-def check_swap_funding(exchange_a: str, symbol_a: str, amount_a: float,
-                       exchange_b: str, symbol_b: str, amount_b: float) -> bool:
+def check_swap_funding(exchange_a: type, symbol_a: str, amount_a: float,
+                       exchange_b: type, symbol_b: str, amount_b: float) -> bool:
     balances = wallet_summary()
     return balances[exchange_a].get(symbol_a) > amount_a and balances[exchange_b].get(symbol_b) > amount_b
