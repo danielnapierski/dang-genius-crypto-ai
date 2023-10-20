@@ -3,6 +3,7 @@ dependencies:
 - pip
 - pip:
   - coinbasepro
+  - dotenv
   - gemini_api
   - krakenex
   - pandas
