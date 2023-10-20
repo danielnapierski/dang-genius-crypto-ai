@@ -5,10 +5,10 @@ class KrakenExchange(Exchange):
     def __init__(self, key: str, secret: str, btc_amount: float):
         super().__init__(key, secret, btc_amount)
 
-    def buyBtc(self):
+    def buy_btc(self):
         print(f'BUY {self.btc_amount:.5f} BTC KRAKEN')
 
-    def sellBtc(self):
+    def sell_btc(self):
         print(f'SELL {self.btc_amount:.5f} BTC KRAKEN DONT WE HAVE BTCCCCCCC')
 
     def buyBitcoin(self, amount: float) -> dict:
