@@ -3,7 +3,6 @@ import hmac
 import json
 import os
 import time
-from pprint import pprint
 from urllib.error import HTTPError
 import krakenex
 from gemini_api.authentication import Authentication
@@ -11,6 +10,9 @@ from gemini_api.authentication import Authentication as GeAuth
 from gemini_api.endpoints.fund_management import FundManagement
 from gemini_api.endpoints.fund_management import FundManagement as GeFM
 
+from dang_genius.coinbaseexchange import CoinbaseExchange
+from dang_genius.geminiexchange import GeminiExchange
+from dang_genius.krakenexchange import KrakenExchange
 # TODO: currently not using import coinbasepro as cbp may need pro api key?
 
 import pandas as pd
@@ -86,7 +88,7 @@ def kraken_get_balances() -> dict:
     return {'BTC': btc_b, 'USD': usd_b}
 
 
-def gemini_get_BTC_balance() -> float:
+def gemini_get_btc_balance() -> float:
     load_dotenv()
     GE_API_KEY = os.environ.get('GE-API-KEY')
     GE_API_SECRET = os.environ.get('GE-API-SECRET')
@@ -96,7 +98,7 @@ def gemini_get_BTC_balance() -> float:
     return float(getattr(btc, 'amount'))
 
 
-def gemini_get_USD_balance() -> float:
+def gemini_get_usd_balance() -> float:
     load_dotenv()
     GE_API_KEY = os.environ.get('GE-API-KEY')
     GE_API_SECRET = os.environ.get('GE-API-SECRET')
@@ -107,34 +109,19 @@ def gemini_get_USD_balance() -> float:
     return float(getattr(usd, 'amount'))
 
 
-def wallet_summary(verbose: bool = None) -> dict:
-    cb_balances = coinbase_get_balances()
-    kr_balances = kraken_get_balances()
-    gemini_btc = gemini_get_BTC_balance()
+def wallet_summary() -> dict:
+    results = {CoinbaseExchange: coinbase_get_balances(), KrakenExchange: kraken_get_balances()}
+
+    gemini_btc = gemini_get_btc_balance()
     time.sleep(1)
-    gemini_usd = gemini_get_USD_balance()
+    gemini_usd = gemini_get_usd_balance()
+    results[GeminiExchange] = {'BTC': gemini_btc, 'USD': gemini_usd}
 
-    if verbose:
-        print('Coinbase:')
-        pprint(cb_balances)
-        print('Kraken:')
-        pprint(kr_balances)
-        print('Gemini:')
-        pprint({'BTC': gemini_btc, 'USD': gemini_usd})
+    btc_total = results[CoinbaseExchange].get('BTC') + results[KrakenExchange].get('BTC') + gemini_btc
+    usd_total = results[CoinbaseExchange].get('USD') + results[KrakenExchange].get('USD') + gemini_usd
+    results['total'] = {'BTC': btc_total, 'USD': usd_total}
 
-    btc_total = cb_balances.get('BTC') + kr_balances.get('BTC') + gemini_btc
-    usd_total = cb_balances.get('USD') + kr_balances.get('USD') + gemini_usd
-    result = {'BTC': btc_total, 'USD': usd_total}
-    if verbose:
-        print('Coinbase:')
-        pprint(cb_balances)
-        print('Kraken:')
-        pprint(kr_balances)
-        print('Gemini:')
-        pprint({'BTC': gemini_btc, 'USD': gemini_usd})
-        print('TOTAL:')
-        pprint(result)
-    return result
+    return results
 
 #    load_dotenv()
 #    CB_API_KEY = os.environ.get('CB-API-KEY')
@@ -143,3 +130,8 @@ def wallet_summary(verbose: bool = None) -> dict:
 #    accounts = coinbase.get_accounts()
 # TODO: coinbasePro api key?
 #    print(accounts)
+
+def check_swap_funding(exchange_a: type, symbol_a: str, amount_a: float,
+                       exchange_b: type, symbol_b: str, amount_b: float) -> bool:
+    balances = wallet_summary()
+    return balances[exchange_a].get(symbol_a) > amount_a and balances[exchange_b].get(symbol_b) > amount_b
