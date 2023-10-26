@@ -1,12 +1,12 @@
 dependencies:
-- python>=3.11
+- python=3.11
 - pip
 - pip:
   - coinbasepro
-  - dotenv
   - gemini_api
   - krakenex
   - pandas
   - python-dotenv
   - requests
+  - setuptools
   - websocket-client

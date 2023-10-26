@@ -1,22 +1,31 @@
-import os
+# Not using gemini_api anymore as the nonce was not configurable.
+#import os
+#from typing import List
 
-from dotenv import load_dotenv
-from gemini_api.authentication import Authentication
-from gemini_api.endpoints.fund_management import FundManagement
+#from dotenv import load_dotenv
+#from gemini_api.authentication import Authentication
+#from gemini_api.endpoints.fund_management import FundManagement
 
-load_dotenv()
+#load_dotenv()
 
-GE_API_KEY = os.environ.get('GE-API-KEY')
-GE_API_SECRET = os.environ.get('GE-API-SECRET')
+#GE_API_KEY = os.environ.get('GE-API-KEY')
+#GE_API_SECRET = os.environ.get('GE-API-SECRET')
 
-auth = Authentication(
-    public_key=GE_API_KEY, private_key=GE_API_SECRET
-)
+#auth = Authentication(
+#    public_key=GE_API_KEY, private_key=GE_API_SECRET
+#)
 
-if __name__ == "__main__":
-    x = FundManagement.get_notional_balances(
-        auth=auth, currency='USD'
-    )
-    y = x[0]
-    print(getattr(y, 'amount'))
-    print(getattr(y, 'currency'))
+#if __name__ == "__main__":
+#    account : List[str] = ["primary"]
+#    path = "/v1/balances"
+#    res = auth.make_request(endpoint=path, payload={"account": account})
+#    print(f'res: {res}')
+
+#    balances = FundManagement.get_available_balances(auth)
+#    print(f'balances: {balances}')
+#    x = FundManagement.get_notional_balances(
+#        auth=auth, currency='USD'
+#    )
+#    y = x[0]
+#    print(getattr(y, 'amount'))
+#    print(getattr(y, 'currency'))

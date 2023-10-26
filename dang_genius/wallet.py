@@ -7,11 +7,12 @@ from urllib.error import HTTPError
 import krakenex
 from gemini_api.authentication import Authentication
 from gemini_api.authentication import Authentication as GeAuth
-from gemini_api.endpoints.fund_management import FundManagement
-from gemini_api.endpoints.fund_management import FundManagement as GeFM
+# from gemini_api.endpoints.fund_management import FundManagement
+# from gemini_api.endpoints.fund_management import FundManagement as GeFM
 
 from dang_genius.coinbaseexchange import CoinbaseExchange
 from dang_genius.geminiexchange import GeminiExchange
+# from dang_genius.geminiexchange import GeminiExchange
 from dang_genius.krakenexchange import KrakenExchange
 # TODO: currently not using import coinbasepro as cbp may need pro api key?
 
@@ -83,45 +84,54 @@ def kraken_get_balances() -> dict:
     k = krakenex.API(KR_API_KEY, KR_API_SECRET)
     b = k.query_private('Balance')['result']
     btc_b = float(b.get('XXBT'))
-    # TODO: kraken USD?
-    usd_b = float(-1.0)
+    usd_b = float(b.get('ZUSD'))
     return {'BTC': btc_b, 'USD': usd_b}
 
 
-def gemini_get_btc_balance() -> float:
+# def gemini_get_btc_balance() -> float:
+#    load_dotenv()
+#    GE_API_KEY = os.environ.get('GE-API-KEY')
+#    GE_API_SECRET = os.environ.get('GE-API-SECRET')
+#    auth = Authentication(public_key=GE_API_KEY, private_key=GE_API_SECRET)
+#    return 0
+#    x = FundManagement.get_notional_balances(auth=auth, currency='USD')
+#    btc = x[0]
+#    return float(getattr(btc, 'amount'))
+
+
+# def gemini_get_usd_balance() -> float:
+#    load_dotenv()
+#    GE_API_KEY = os.environ.get('GE-API-KEY')
+#    GE_API_SECRET = os.environ.get('GE-API-SECRET')
+
+#    auth = GeAuth(public_key=GE_API_KEY, private_key=GE_API_SECRET)
+#    ab = GeFM.get_available_balances(auth=auth)
+#    usd = ab[0]
+#    return float(getattr(usd, 'amount'))
+
+
+def gemini_get_balances() -> dict:
     load_dotenv()
     GE_API_KEY = os.environ.get('GE-API-KEY')
     GE_API_SECRET = os.environ.get('GE-API-SECRET')
-    auth = Authentication(public_key=GE_API_KEY, private_key=GE_API_SECRET)
-    x = FundManagement.get_notional_balances(auth=auth, currency='USD')
-    btc = x[0]
-    return float(getattr(btc, 'amount'))
-
-
-def gemini_get_usd_balance() -> float:
-    load_dotenv()
-    GE_API_KEY = os.environ.get('GE-API-KEY')
-    GE_API_SECRET = os.environ.get('GE-API-SECRET')
-
-    auth = GeAuth(public_key=GE_API_KEY, private_key=GE_API_SECRET)
-    ab = GeFM.get_available_balances(auth=auth)
-    usd = ab[0]
-    return float(getattr(usd, 'amount'))
+    BTC_SWAP_AMT = float(os.environ.get('BTC-SWAP-AMT'))
+    return GeminiExchange(GE_API_KEY, GE_API_SECRET, BTC_SWAP_AMT).get_balances()
 
 
 def wallet_summary() -> dict:
-    results = {CoinbaseExchange: coinbase_get_balances(), KrakenExchange: kraken_get_balances()}
-
-    gemini_btc = gemini_get_btc_balance()
-    time.sleep(1)
-    gemini_usd = gemini_get_usd_balance()
-    results[GeminiExchange] = {'BTC': gemini_btc, 'USD': gemini_usd}
-
-    btc_total = results[CoinbaseExchange].get('BTC') + results[KrakenExchange].get('BTC') + gemini_btc
-    usd_total = results[CoinbaseExchange].get('USD') + results[KrakenExchange].get('USD') + gemini_usd
+    results = {CoinbaseExchange: coinbase_get_balances(),
+               KrakenExchange: kraken_get_balances(),
+               GeminiExchange: gemini_get_balances()}
+    btc_total = (results[CoinbaseExchange].get('BTC')
+                 + results[KrakenExchange].get('BTC')
+                 + results[GeminiExchange].get('BTC'))
+    usd_total = (results[CoinbaseExchange].get('USD')
+                 + results[KrakenExchange].get('USD')
+                 + results[GeminiExchange].get('USD'))
     results['total'] = {'BTC': btc_total, 'USD': usd_total}
 
     return results
+
 
 #    load_dotenv()
 #    CB_API_KEY = os.environ.get('CB-API-KEY')
