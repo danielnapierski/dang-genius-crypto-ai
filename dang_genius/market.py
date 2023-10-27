@@ -49,7 +49,8 @@ def market_check(fee_estimate: float) -> dict:
             f'{datetime.now()} max_bid: {max_bid:.5f}\tmin_ask: {min_ask:.5f}\tSpread: {spread:.5f}\tFee: {fee:.5f}')
 
         if spread > fee:
-            return {util.BUY_KEY: asks[min_ask], util.SELL_KEY: bids[max_bid], util.SPREAD_KEY: spread}
+            return {util.BUY_KEY: asks[min_ask], util.SELL_KEY: bids[max_bid],
+                    util.SPREAD_KEY: spread, util.MIN_ASK_KEY: min_ask, util.MAX_BID_KEY: max_bid }
 
         return {util.MSG_KEY: f'spread {spread:.5f} is less than fees {fee:.5f}', util.SPREAD_KEY: spread}
 

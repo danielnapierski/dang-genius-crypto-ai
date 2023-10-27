@@ -1,5 +1,5 @@
 import base64
-import datetime
+#import datetime
 import hashlib
 import hmac
 import json
@@ -16,9 +16,11 @@ class GeminiExchange(Exchange):
         self.api_url = 'https://api.gemini.com'
         self.order_endpoint = '/v1/order/new'
         self.balances_endpoint = '/v1/balances'
+        self.BTC_USD_PAIR = "btcusd"
 
     def get_nonce(self) -> str:
-        return str(int(9999999999999 + time.mktime(datetime.datetime.now().timetuple()) * 1000))
+        my_num = int(1000 * time.time()) + 11698339415999
+        return str(my_num)
 
     def get_balances(self):
         account: List[str] = ["primary"]
@@ -57,24 +59,39 @@ class GeminiExchange(Exchange):
 
     def buy_btc(self):
         print(f'BUY {self.btc_amount:.5f} BTC GEMINI')
-        self.trade('buy')
+        self.trade(self.BTC_USD_PAIR, 'buy')
         print(f'COMPLETED BUY {self.btc_amount:.5f} BTC GEMINI')
 
     def sell_btc(self):
         print(f'SELL {self.btc_amount:.5f} BTC GEMINI')
-        self.trade('sell')
+        self.trade(self.BTC_USD_PAIR, 'sell')
         print(f'COMPLETED SELL {self.btc_amount:.5f} BTC GEMINI')
 
-    def trade(self, side: str) -> object:
+    def set_limits(self, min_ask: float, max_bid: float) -> None:
+        self.min_ask = min_ask
+        self.max_bid = max_bid
+
+
+    def trade(self, pair:str, side: str) -> object:
+        # GEMINI does not directly support market orders because they provide you with no price protection.
+        # Instead, use the “immediate-or-cancel” order execution option, coupled with an aggressive limit price
+        # (i.e.very high for a buy order or very low for a sell order), to achieve the same result.
+        # price = self.max_bid if side == 'buy' else  self.min_ask
+        room = float((self.max_bid - self.min_ask) / 4.0)
+#        room = 3.0
+        price = (self.min_ask + room) if side == 'buy' else (self.max_bid - room)
+
         payload = {
             "request": self.order_endpoint,
             "nonce": self.get_nonce(),
-            "symbol": "btcusd",
+            "symbol": pair,
             "amount": self.btc_amount,
             "side": side,
             "type": "exchange limit",
-            # TODO: fix market?
+            "price": f'{price:.2f}',
+            "options": ["immediate-or-cancel"]
         }
+
         encoded_payload = json.dumps(payload).encode()
         b64 = base64.b64encode(encoded_payload)
         signature = hmac.new(self.secret.encode(), b64, hashlib.sha384).hexdigest()
@@ -96,25 +113,3 @@ class GeminiExchange(Exchange):
 
         except Exception as e:
             print(f'GEMINI EXCEPTION: {e}')
-
-# if not payload:
-
-# check_status = new_order['order_id']
-# notes below
-# import os
-# from dotenv import load_dotenv
-# from gemini_api.authentication import Authentication
-# from gemini_api.endpoints.fund_management import FundManagement
-#
-# load_dotenv()
-#
-# auth = Authentication(
-#    public_key=GE_API_KEY, private_key=GE_API_SECRET
-# )
-# if __name__ == "__main__":
-#   x = FundManagement.get_notional_balances(
-#      auth=auth, currency='USD'
-#    )
-#    y = x[0]
-#    print(getattr(y, 'amount'))
-#    print(getattr(y, 'currency'))
