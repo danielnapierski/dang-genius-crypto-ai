@@ -20,6 +20,14 @@ class Conductor:
             KrakenExchange:
                 KrakenExchange(os.environ.get('KR-API-KEY'), os.environ.get('KR-API-SECRET'), self.btc_amount)}
 
-    def buy_btc_sell_btc(self, exchange_to_buy_btc: type, exchange_to_sell_btc: type) -> None:
+    def buy_btc_sell_btc(self, exchange_to_buy_btc: type, exchange_to_sell_btc: type,
+                         min_ask: float, max_bid: float) -> None:
+
+        gemini_exchange = self.exchanges.get(GeminiExchange)
+        gemini_exchange.set_limits(min_ask, max_bid)
+
+        coinbase_exchange = self.exchanges.get(CoinbaseExchange)
+        coinbase_exchange.set_limits(min_ask, max_bid)
+
         Thread(target=self.exchanges.get(exchange_to_buy_btc).buy_btc).start()
         Thread(target=self.exchanges.get(exchange_to_sell_btc).sell_btc).start()

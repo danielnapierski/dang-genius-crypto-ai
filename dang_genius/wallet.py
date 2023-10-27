@@ -5,14 +5,9 @@ import os
 import time
 from urllib.error import HTTPError
 import krakenex
-from gemini_api.authentication import Authentication
-from gemini_api.authentication import Authentication as GeAuth
-# from gemini_api.endpoints.fund_management import FundManagement
-# from gemini_api.endpoints.fund_management import FundManagement as GeFM
 
 from dang_genius.coinbaseexchange import CoinbaseExchange
 from dang_genius.geminiexchange import GeminiExchange
-# from dang_genius.geminiexchange import GeminiExchange
 from dang_genius.krakenexchange import KrakenExchange
 # TODO: currently not using import coinbasepro as cbp may need pro api key?
 
@@ -88,28 +83,6 @@ def kraken_get_balances() -> dict:
     return {'BTC': btc_b, 'USD': usd_b}
 
 
-# def gemini_get_btc_balance() -> float:
-#    load_dotenv()
-#    GE_API_KEY = os.environ.get('GE-API-KEY')
-#    GE_API_SECRET = os.environ.get('GE-API-SECRET')
-#    auth = Authentication(public_key=GE_API_KEY, private_key=GE_API_SECRET)
-#    return 0
-#    x = FundManagement.get_notional_balances(auth=auth, currency='USD')
-#    btc = x[0]
-#    return float(getattr(btc, 'amount'))
-
-
-# def gemini_get_usd_balance() -> float:
-#    load_dotenv()
-#    GE_API_KEY = os.environ.get('GE-API-KEY')
-#    GE_API_SECRET = os.environ.get('GE-API-SECRET')
-
-#    auth = GeAuth(public_key=GE_API_KEY, private_key=GE_API_SECRET)
-#    ab = GeFM.get_available_balances(auth=auth)
-#    usd = ab[0]
-#    return float(getattr(usd, 'amount'))
-
-
 def gemini_get_balances() -> dict:
     load_dotenv()
     GE_API_KEY = os.environ.get('GE-API-KEY')
@@ -132,14 +105,6 @@ def wallet_summary() -> dict:
 
     return results
 
-
-#    load_dotenv()
-#    CB_API_KEY = os.environ.get('CB-API-KEY')
-#    CB_SECRET_KEY = os.environ.get('CB-API-SECRET')
-#    coinbase = cbp.AuthenticatedClient(CB_API_KEY, CB_SECRET_KEY, '')
-#    accounts = coinbase.get_accounts()
-# TODO: coinbasePro api key?
-#    print(accounts)
 
 def check_swap_funding(exchange_a: type, symbol_a: str, amount_a: float,
                        exchange_b: type, symbol_b: str, amount_b: float) -> bool:

@@ -15,6 +15,9 @@ def bot() -> None:
             buy_ex = opportunity.get(util.BUY_KEY)
             sell_ex = opportunity.get(util.SELL_KEY)
             spread = opportunity.get(util.SPREAD_KEY)
+            min_ask = opportunity.get(util.MIN_ASK_KEY)
+            max_bid = opportunity.get(util.MAX_BID_KEY)
+
             if spread and spread > max_spread:
                 max_spread = spread
                 print(f'Max Spread: {max_spread:.2f}')
@@ -23,12 +26,16 @@ def bot() -> None:
 #TODO: FIX
                 funded = check_swap_funding(buy_ex, 'USD', conductor.usd_amount,
                                             sell_ex, 'BTC', conductor.btc_amount)
-                if not funded:
-                    funded = True
-                    print('ATTEMPTING WITHOUT FUNDS')
+#                if not funded:
+#                    funded = True
+#                    print('ATTEMPTING WITHOUT FUNDS')
 
                 if funded:
-                    conductor.buy_btc_sell_btc(buy_ex, sell_ex)
+                    conductor.buy_btc_sell_btc(buy_ex, sell_ex, min_ask, max_bid)
+                    time.sleep(10)
+
+                    print('EXITING')
+                    exit()
                 else:
                     print('Insuffiecient funds.')
-        time.sleep(5)
+        time.sleep(2)
