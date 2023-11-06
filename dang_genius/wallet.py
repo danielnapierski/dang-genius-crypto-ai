@@ -9,7 +9,6 @@ import krakenex
 from dang_genius.coinbaseexchange import CoinbaseExchange
 from dang_genius.geminiexchange import GeminiExchange
 from dang_genius.krakenexchange import KrakenExchange
-# TODO: currently not using import coinbasepro as cbp may need pro api key?
 
 import pandas as pd
 import requests

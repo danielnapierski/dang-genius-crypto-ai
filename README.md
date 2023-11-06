@@ -85,3 +85,6 @@ To check your coinbase API connection:
  python -c 'from dang_genius.wallet import wallet_summary as ws; print(ws())'
  python -c 'from dang_genius.market import market_check as mc; mc()'
 ```
+
+### TODO: 
+pip install pycaret[full]
