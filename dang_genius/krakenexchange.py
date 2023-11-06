@@ -35,7 +35,38 @@ class KrakenExchange(Exchange):
         print('KRAKEN SELLING')
         self.trade(self.BTC_USD_PAIR, "sell")
 
+    def set_limits(self, min_ask: float, max_bid: float) -> None:
+        self.min_ask = min_ask
+        self.max_bid = max_bid
+
+        # $ ./krakenapi AddOrder pair=xdgusd type=buy ordertype=limit price=1.00 volume=50
+        # timeinforce=ioc{"error":[],"result":{"txid":["OZS2KT-JVN2E-J2XM7Z"],"descr":{"order":"buy 50.00000000 XDGUSD @ limit 1.0000000"}}}
     def trade(self, pair: str, side: str):
+        print(f'TRADE {side} {self.btc_amount:.5f} {pair} KRAKEN ...')
+        room = float((self.max_bid - self.min_ask) / 3.0)
+        price = (self.min_ask + room) if side == 'buy' else (self.max_bid - room)
+        resp = self.kraken_request('/0/private/AddOrder', {
+            "nonce": str(int(1000 * time.time())),
+            "ordertype": "limit",
+            "price": f'{price:.1f}',
+            "type": side,
+            "volume": self.btc_amount,
+            "pair": pair,
+            "timeinforce": "ioc"
+        }, self.key, self.secret)
+
+        print(f'STARTED {side} {self.btc_amount:.5f} {pair} KRAKEN')
+        text_resp = getattr(resp, 'text')
+        j = json.loads(text_resp)
+        error = j.get('error')
+        if error:
+            print(f'KRAKEN ERROR: {error}')
+        else:
+            print(f'KRAKEN SUCCESS: {j}')
+        print('</KRAKEN>')
+
+
+    def market_trade(self, pair: str, side: str):
         print(f'TRADE {side} {self.btc_amount:.5f} {pair} KRAKEN ...')
         # Construct the request and print the result
         resp = self.kraken_request('/0/private/AddOrder', {
@@ -55,3 +86,6 @@ class KrakenExchange(Exchange):
         else:
             print(f'KRAKEN SUCCESS: {j}')
         print('</KRAKEN>')
+
+# KRAKEN SUCCESS: {'error': [], 'result': {'txid': ['O6R2WB-HQXUF-HIF7VC'], 'descr': {'order': 'buy 0.00010000 XBTUSD @ limit 33706.4'}}}
+# KRAKEN SUCCESS: {'error': [], 'result': {'txid': ['OJV7EF-ETEL6-PBIJFF'], 'descr': {'order': 'buy 0.00010000 XBTUSD @ limit 33706.4'}}}

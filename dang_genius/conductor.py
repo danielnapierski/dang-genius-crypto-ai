@@ -22,12 +22,17 @@ class Conductor:
 
     def buy_btc_sell_btc(self, exchange_to_buy_btc: type, exchange_to_sell_btc: type,
                          min_ask: float, max_bid: float) -> None:
+        be = self.exchanges.get(exchange_to_buy_btc)
+        be.set_limits(min_ask, max_bid)
+        Thread(target=be.buy_btc).start()
 
-        gemini_exchange = self.exchanges.get(GeminiExchange)
-        gemini_exchange.set_limits(min_ask, max_bid)
+        se = self.exchanges.get(exchange_to_sell_btc)
+        se.set_limits(min_ask, max_bid)
+        Thread(target=se.sell_btc).start()
 
-        coinbase_exchange = self.exchanges.get(CoinbaseExchange)
-        coinbase_exchange.set_limits(min_ask, max_bid)
+    def buy_the_dip(self):
+        gemini_ex = self.exchanges.get(GeminiExchange)
+        Thread(target=gemini_ex.buy_btc_dip).start()
 
-        Thread(target=self.exchanges.get(exchange_to_buy_btc).buy_btc).start()
-        Thread(target=self.exchanges.get(exchange_to_sell_btc).sell_btc).start()
+        coinbase_ex = self.exchanges.get(CoinbaseExchange)
+        Thread(target=coinbase_ex.buy_btc_dip).start()
