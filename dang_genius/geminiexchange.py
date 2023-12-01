@@ -7,6 +7,7 @@ from typing import List
 
 import requests
 import numpy as np
+import dang_genius.util as util
 from gemini_api.endpoints.public import Public
 
 from dang_genius.exchange import Exchange
@@ -24,18 +25,17 @@ class GeminiExchange(Exchange):
         self.BUY_SIDE = "buy"
         self.SELL_SIDE = "sell"
         self.public_api = Public()
-        self.DIP: float = 0.001
-        self.DIPS_BOUGHT: int = 0
-        self.STRIKES = [35400.01]
-        self.MAX_STRIKES = 1
-        self.COVER: float = 400.0
+        self.DIP: float = 0.0012
+#        self.DIPS_BOUGHT: int = 0
+#        self.STRIKES = []
+#        self.MAX_STRIKES = 5
+#        self.COVER: float = 500.0
 
     def get_nonce(self) -> str:
         my_num = int(1000 * time.time()) + 11698339415999
         return str(my_num)
 
-    def get_balances(self):
-        account: List[str] = ["primary"]
+    def get_balances(self) -> dict:
         payload = {}
         request_url = self.api_url + self.balances_endpoint
         payload["request"] = self.balances_endpoint
@@ -86,6 +86,15 @@ class GeminiExchange(Exchange):
     def buy_btc_dip(self):
         self.buy_the_dip(self.BTC_USD_PAIR)
 
+    def get_btc_ticker(self):
+        return self.get_ticker(self.BTC_USD_PAIR)
+
+    def get_ticker(self, pair:str):
+        ticker = self.public_api.get_ticker(pair)
+        ask: float = float(ticker.get('ask'))
+        bid: float = float(ticker.get('bid'))
+        return {util.ASK_KEY: ask, util.BID_KEY: bid}
+
     def buy_the_dip(self, pair: str):
         # read the market
         # identify when a dip has occurred
@@ -94,35 +103,52 @@ class GeminiExchange(Exchange):
         top_ask = 0.0
 
         while True:
-            ticker = self.public_api.get_ticker(pair)
-            ask: float = float(ticker.get('ask'))
-            if ask > top_ask:
-                top_ask = ask
-            bid: float = float(ticker.get('bid'))
+            try:
+                ticker = self.public_api.get_ticker(pair)
+                ask: float = float(ticker.get('ask'))
+                if ask > top_ask:
+                    top_ask = ask
+                bid: float = float(ticker.get('bid'))
 
-            if len(self.STRIKES) > 0:
-                lowest_strike = np.min(self.STRIKES)
-                if lowest_strike and bid > lowest_strike:
+                if bid * 100 > self.strike_price_in_pennies and self.strike_price_in_pennies > 0:
+                    print('GEMINI SELL IT ALL')
                     self.set_limits(bid, bid)
                     sell_tx = self.trade(pair, self.SELL_SIDE)
                     if sell_tx:
-                        print(f'SOLD! {sell_tx}')
-                        self.STRIKES.remove(lowest_strike)
-            if bid > top_bid:
-                top_bid = bid
-            if (ask + bid) * (1 + self.DIP) < (top_ask + top_bid) and len(self.STRIKES) < self.MAX_STRIKES:
-                print(f"DIP {ask:8.2f} {bid:8.2f} TOP: {top_ask:8.2f} {top_bid:8.2f}")
-                self.set_limits(ask, ask)
-                tx = self.trade(pair, self.BUY_SIDE)
-                if tx:
-                    strike = float(tx.get("price")) + self.COVER
-                    print(f'SHOULD SELL FOR {strike}')
-                    self.DIPS_BOUGHT = self.DIPS_BOUGHT + 1
-                    self.STRIKES.append(strike)
-                    top_ask = 0.0
-                    top_bid = 0.0
-                    time.sleep(10)
-            time.sleep(1)
+                        print(f'GEMINI SOLD: {sell_tx}')
+                        time.sleep(1)
+
+#            if len(self.STRIKES) > 0:
+#                lowest_strike = np.min(self.STRIKES)
+#                if lowest_strike and bid > lowest_strike:
+#                    self.set_limits(bid, bid)
+#                    sell_tx = self.trade(pair, self.SELL_SIDE)
+#                    if sell_tx:
+#                        print(f'SOLD! {sell_tx}')
+#                        self.STRIKES.remove(lowest_strike)
+#                        top_ask = 0.0
+#                        top_bid = 0.0
+#                        time.sleep(10)
+                if bid > top_bid:
+                    top_bid = bid
+                if (ask + bid) * (1 + self.DIP) < (top_ask + top_bid):
+# TODO: check funding!    and len(self.STRIKES) < self.MAX_STRIKES:
+                    print(f"\nDIP {ask:8.2f} {bid:8.2f} TOP: {top_ask:8.2f} {top_bid:8.2f}")
+                    self.set_limits(ask, ask)
+                    tx = self.trade(pair, self.BUY_SIDE)
+# STOP BUYING
+#                tx = None
+                    if tx:
+#                    strike = float(tx.get("price")) + self.COVER
+#                    print(f'SHOULD SELL FOR {strike}')
+#                    self.DIPS_BOUGHT = self.DIPS_BOUGHT + 1
+#                    self.STRIKES.append(strike)
+                        top_ask = 0.0
+                        top_bid = 0.0
+                        time.sleep(10)
+                time.sleep(1)
+            except Exception as e:
+                print(f'Gemini Exception: {e}')
 
     def trade(self, pair: str, side: str) -> dict:
         # https://docs.gemini.com/rest-api/#new-order

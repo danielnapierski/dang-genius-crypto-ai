@@ -8,9 +8,9 @@ from dang_genius.conductor import Conductor
 def bot() -> None:
     conductor = Conductor()
     max_spread: float = 0.0
-    tx_count: int = 0
 
     conductor.buy_the_dip()
+    conductor.take_the_win()
 
     while True:
         opportunity = mc(conductor.fee_estimate)
@@ -23,7 +23,7 @@ def bot() -> None:
 
             if spread and spread > max_spread:
                 max_spread = spread
-                print(f'Max Spread: {max_spread:.2f}')
+                print(f'\nMax Spread: {max_spread:.2f}')
 
             if buy_ex and sell_ex:
                 funded = check_swap_funding(buy_ex, 'USD', conductor.usd_amount,
@@ -31,11 +31,6 @@ def bot() -> None:
 
                 if funded:
                     conductor.buy_btc_sell_btc(buy_ex, sell_ex, min_ask, max_bid)
-                    tx_count = tx_count + 1
-                    if tx_count > 10:
-                        print('Exiting...')
-                        time.sleep(10)
-                        exit()
                 else:
-                    print('Insuffiecient funds.')
+                    print('MISSED! Not enough funds.')
         time.sleep(0.5)
