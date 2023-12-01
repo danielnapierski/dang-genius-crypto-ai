@@ -1,10 +1,13 @@
 import base64
 import hashlib
-import json
 import hmac
+import json
 import time
 import urllib.parse
+
+import krakenex
 import requests
+import dang_genius.util as util
 from dang_genius.exchange import Exchange
 
 
@@ -14,6 +17,15 @@ class KrakenExchange(Exchange):
         super().__init__(key, secret, btc_amount)
         self.api_url = "https://api.kraken.com"
         self.BTC_USD_PAIR: str = "XBTUSD"
+        self.public_client = krakenex.API()
+        self.public_pair: str = 'XXBTZUSD'
+        self.private_client = krakenex.API(self.key, self.secret)
+
+    def get_balances(self) -> dict:
+        b = self.private_client.query_private('Balance')['result']
+        btc_b = float(b.get('XXBT'))
+        usd_b = float(b.get('ZUSD'))
+        return {'BTC': btc_b, 'USD': usd_b}
 
     def get_kraken_signature(self, urlpath, data, secret):
         postdata = urllib.parse.urlencode(data)
@@ -39,8 +51,19 @@ class KrakenExchange(Exchange):
         self.min_ask = min_ask
         self.max_bid = max_bid
 
+    def get_btc_ticker(self):
+        return self.get_ticker(self.BTC_USD_PAIR)
+
+    def get_ticker(self, pair: str):
+        kraken_public_result = (
+            self.public_client.query_public('Depth', {'pair': self.public_pair, 'count': '10'}).get('result').get(self.public_pair))
+        ask: float = float(kraken_public_result.get('asks')[0][0])
+        bid: float = float(kraken_public_result.get('bids')[0][0])
+        return {util.ASK_KEY: ask, util.BID_KEY: bid}
+
         # $ ./krakenapi AddOrder pair=xdgusd type=buy ordertype=limit price=1.00 volume=50
         # timeinforce=ioc{"error":[],"result":{"txid":["OZS2KT-JVN2E-J2XM7Z"],"descr":{"order":"buy 50.00000000 XDGUSD @ limit 1.0000000"}}}
+
     def trade(self, pair: str, side: str):
         print(f'TRADE {side} {self.btc_amount:.5f} {pair} KRAKEN ...')
         room = float((self.max_bid - self.min_ask) / 3.0)
@@ -64,7 +87,6 @@ class KrakenExchange(Exchange):
         else:
             print(f'KRAKEN SUCCESS: {j}')
         print('</KRAKEN>')
-
 
     def market_trade(self, pair: str, side: str):
         print(f'TRADE {side} {self.btc_amount:.5f} {pair} KRAKEN ...')

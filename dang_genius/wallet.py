@@ -5,10 +5,14 @@ import os
 import time
 from urllib.error import HTTPError
 import krakenex
+import sqlite3
+#import numpy as np
 
-from dang_genius.coinbaseexchange import CoinbaseExchange
+import dang_genius.util as util
+
+#from dang_genius.coinbaseexchange import CoinbaseExchange
 from dang_genius.geminiexchange import GeminiExchange
-from dang_genius.krakenexchange import KrakenExchange
+#from dang_genius.krakenexchange import KrakenExchange
 
 import pandas as pd
 import requests
@@ -89,23 +93,50 @@ def gemini_get_balances() -> dict:
     BTC_SWAP_AMT = float(os.environ.get('BTC-SWAP-AMT'))
     return GeminiExchange(GE_API_KEY, GE_API_SECRET, BTC_SWAP_AMT).get_balances()
 
+def get_balances() -> dict:
+    try:
+        connection = sqlite3.connect(util.DB_NAME)
+        cursor = connection.cursor()
+
+        sqlite_select_query = """SELECT id, exchange, symbol, MAX(timestamp), available FROM wallet GROUP BY exchange, symbol ORDER BY id DESC LIMIT 10"""
+        # NOTE: we should get 6 records, 3 exchanges, 2 symbols
+        cursor.execute(sqlite_select_query)
+        records = cursor.fetchall()
+        if len(records) != 6:
+            print("UNKNOWN ERROR")
+
+        result = {}
+        for r in records:
+            exchange = r[1]
+            symbol = r[2]
+            available = r[4]
+            vallet_values = result[exchange] if exchange in result else {}
+            vallet_values[symbol] = available
+            result[exchange] = vallet_values
+        return result
+    except sqlite3.Error as error:
+        print("Failed to read sqlite table", error)
+        return {}
+    finally:
+        if connection:
+            connection.close()
+
+
 
 def wallet_summary() -> dict:
-    results = {CoinbaseExchange: coinbase_get_balances(),
-               KrakenExchange: kraken_get_balances(),
-               GeminiExchange: gemini_get_balances()}
-    btc_total = (results[CoinbaseExchange].get('BTC')
-                 + results[KrakenExchange].get('BTC')
-                 + results[GeminiExchange].get('BTC'))
-    usd_total = (results[CoinbaseExchange].get('USD')
-                 + results[KrakenExchange].get('USD')
-                 + results[GeminiExchange].get('USD'))
+    results = get_balances()
+    btc_total: float = 0.0
+    usd_total: float = 0.0
+    for v in results.values():
+        btc_total = btc_total + float(v.get('BTC'))
+        usd_total = usd_total + float(v.get('USD'))
+
     results['total'] = {'BTC': btc_total, 'USD': usd_total}
 
     return results
 
 
-def check_swap_funding(exchange_a: type, symbol_a: str, amount_a: float,
-                       exchange_b: type, symbol_b: str, amount_b: float) -> bool:
+def check_swap_funding(exchange_a: str, symbol_a: str, amount_a: float,
+                       exchange_b: str, symbol_b: str, amount_b: float) -> bool:
     balances = wallet_summary()
     return balances[exchange_a].get(symbol_a) > amount_a and balances[exchange_b].get(symbol_b) > amount_b
