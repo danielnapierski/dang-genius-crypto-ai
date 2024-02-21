@@ -12,23 +12,33 @@ def market_check(fee_estimate: float) -> dict:
         connection = sqlite3.connect(util.DB_NAME)
         cursor = connection.cursor()
 
-        sqlite_select_query = """SELECT id, exchange, pair, side, MAX(timestamp), pennies FROM market GROUP BY exchange, pair, side ORDER BY id DESC LIMIT 10"""
-        # NOTE: we should get 6 records, 3 exchanges, 1 pair, 2 sides (asks and bids)
+        ask_query = """SELECT id, exchange, pair, MAX(timestamp), pennies FROM ask 
+                    GROUP BY exchange, pair ORDER BY id DESC LIMIT 5"""
 # TODO: make sure the records are recent.
 
-        cursor.execute(sqlite_select_query)
+        cursor.execute(ask_query)
         records = cursor.fetchall()
-        if len(records) != 6:
+        if len(records) != 3:
             print("UNKNOWN ERROR")
 
         for r in records:
             exchange = r[1]
-            side = r[3]
-            price: float = float(int(r[5]) / 100.0)
-            if util.BID_KEY == side:
-                bids[price] = exchange
-            if util.ASK_KEY == side:
-                asks[price] = exchange
+            price: float = float(int(r[4]) / 100.0)
+            asks[price] = exchange
+
+        bid_query = """SELECT id, exchange, pair, MAX(timestamp), pennies FROM bid 
+                            GROUP BY exchange, pair ORDER BY id DESC LIMIT 5"""
+ # TODO: make sure the records are recent.
+
+        cursor.execute(bid_query)
+        records = cursor.fetchall()
+        if len(records) != 3:
+            print("UNKNOWN ERROR")
+
+        for r in records:
+            exchange = r[1]
+            price: float = float(int(r[4]) / 100.0)
+            bids[price] = exchange
 
         max_bid = np.max(list(bids.keys()))
         min_ask = np.min(list(asks.keys()))
@@ -45,11 +55,11 @@ def market_check(fee_estimate: float) -> dict:
 
         return {util.MSG_KEY: f'spread {spread:.5f} is less than fees {fee:.5f}', util.SPREAD_KEY: spread}
     except sqlite3.Error as sql_error:
-        print(f'SQL error: {sql_error}')
+        print(f'MC SQL error: {sql_error}')
     except TypeError as type_error:
-        print(f'Type error: {type_error}')
+        print(f'MC Type error: {type_error}')
     except Exception as e:
-        print(f'Exception: {e}')
+        print(f'MC Exception: {e}')
     finally:
         if connection:
             connection.close()
