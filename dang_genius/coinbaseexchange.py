@@ -4,15 +4,14 @@ import json
 import time
 from datetime import datetime
 from datetime import timedelta
+from urllib.error import HTTPError
+
 import coinbasepro as cbp
-import numpy as np
+import pandas as pd
 import requests
+
 import dang_genius.util as util
 from dang_genius.exchange import Exchange
-
-
-from urllib.error import HTTPError
-import pandas as pd
 
 
 class CoinbaseExchange(Exchange):
@@ -25,9 +24,6 @@ class CoinbaseExchange(Exchange):
         self.BUY_SIDE: str = 'BUY'
         self.SELL_SIDE: str = 'SELL'
         self.DIP: float = 0.0012
-#        self.STRIKES = []
-#        self.MAX_STRIKES = 5
-#        self.COVER: float = 500.0
 
     def coinbase_connect(self, url_path, limit=50, cursor=''):
         url = self.api_url + url_path
@@ -89,15 +85,16 @@ class CoinbaseExchange(Exchange):
 
     def get_ticker(self, pair:str) -> dict:
         try:
+            time.sleep(0.005)
             order_book = self.public_client.get_product_order_book(pair)
             ask: float = float(order_book.get('asks')[0][0])
             bid: float = float(order_book.get('bids')[0][0])
             return {util.ASK_KEY: ask, util.BID_KEY: bid}
         except requests.exceptions.ReadTimeout as readtimeout_error:
-            print(f'ReadTimeout error: {readtimeout_error}')
+            print(f'CB Ticker ReadTimeout error: {readtimeout_error}')
             return {}
         except Exception as error:
-            print(f'Exception error: {error}')
+            print(f'CB Ticker Exception error: {error}')
             return {}
 
 
@@ -122,15 +119,15 @@ class CoinbaseExchange(Exchange):
                     top_ask = ask
                 bid: float = float(ticker.get(util.BID_KEY))
 
-                if bid * 100 > self.strike_price_in_pennies and self.strike_price_in_pennies > 0:
-                    print('CB SELL IT ALL')
+#                if bid * 100 > self.strike_price_in_pennies and self.strike_price_in_pennies > 0:
+#                    print('CB SELL IT ALL')
 # TODO: look how much is available to sell
 # set THE NEXT STRIKE PRICE                 strike_price_in_pennies = int(r[5]) + int(int(r[5]) / 200)
-                    self.set_limits(bid, bid)
-                    sell_tx = self.trade(pair, self.SELL_SIDE)
-                    if sell_tx:
-                        print(f'CB SOLD: {sell_tx}')
-                        time.sleep(10)
+#                    self.set_limits(bid, bid)
+#                    sell_tx = self.trade(pair, self.SELL_SIDE)
+#                    if sell_tx:
+#                        print(f'CB SOLD: {sell_tx}')
+#                        time.sleep(10)
 
 #                if len(self.STRIKES) > 0:
 #                    lowest_strike = np.min(self.STRIKES)
@@ -152,11 +149,8 @@ class CoinbaseExchange(Exchange):
                     self.set_limits(ask, ask)
                     tx = self.trade(pair, self.BUY_SIDE)
                     if tx:
- #                       strike = float(tx.get("price")) + self.COVER
- #                       print(f'CB COVER PRICE: {strike}')
- #                       self.STRIKES.append(strike)
-                        top_ask = 0.0
-                        top_bid = 0.0
+                        top_ask = ask
+                        top_bid = bid
                         time.sleep(10)
             except requests.exceptions.ReadTimeout as read_error:
                 print(f'CB Read error: {read_error}')
@@ -164,7 +158,7 @@ class CoinbaseExchange(Exchange):
                 print(f'CB ERROR: {connection_error}')
                 time.sleep(1.0)
             except Exception as e:
-                print(f'Exception: {e}')
+                print(f'CB Exception: {e}')
 
             time.sleep(0.5)
 
@@ -273,9 +267,3 @@ class CoinbaseExchange(Exchange):
 
         except Exception as e:
             print(f'CB EXCEPTION: {e}')
-
-# CB SUCCESS: {'success': True, 'failure_reason': 'UNKNOWN_FAILURE_REASON', 'order_id': 'be546e69-554a-4f93-b201-5b5702b4c801', 'success_response':
-# {'order_id': 'be546e69-554a-4f93-b201-5b5702b4c801', 'product_id': 'BTC-USD', 'side': 'SELL', 'client_order_id': 'CB-order-1698437759'},
-# 'order_configuration': {'market_market_ioc': {'base_size': '0.00010'}}}
-# 2023-10-27 16:16:00.513768 min_ask:   33700.00  max_bid:   33731.99     Spread:  31.99  Fee:  25.30     TRADE buy 0.00010 XBTUSD KRAKEN ...
-# SELL 0.00010 BTC

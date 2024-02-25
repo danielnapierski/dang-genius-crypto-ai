@@ -144,15 +144,15 @@ class Conductor:
                     connection.commit()
                     cursor.close()
                 except TimeoutError as timeout_error:
-                    print(f'Timeout error: {timeout_error}')
+                    print(f'FM Timeout error: {timeout_error} {exchange}')
                 except ValueError as value_error:
-                    print(f'Value error: {value_error}')
+                    print(f'FM Value error: {value_error} {exchange}')
                 except ConnectionError as connection_error:
-                    print(f'Connection error: {connection_error}')
+                    print(f'FM Connection error: {connection_error} {exchange}')
                 except sqlite3.Error as sqlite3_error:
-                    print(f'SQLite3 error: {sqlite3_error}')
+                    print(f'FM SQLite3 error: {sqlite3_error} {exchange}')
                 except Exception as e:
-                    print(f'Exception: {e}')
+                    print(f'FM Exception: {e} {exchange}')
                 finally:
                     if connection:
                         connection.close()

@@ -4,12 +4,6 @@ from dang_genius.wallet import check_swap_funding as check_swap_funding
 import dang_genius.util as util
 from dang_genius.conductor import Conductor
 
-def bot2() -> None:
-    conductor = Conductor()
-    while True:
-        time.sleep(2)
-
-
 def bot() -> None:
     conductor = Conductor()
     max_spread: float = 0.0
