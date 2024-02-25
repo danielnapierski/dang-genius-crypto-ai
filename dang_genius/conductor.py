@@ -20,9 +20,23 @@ class Conductor:
         connection = sqlite3.connect(util.DB_NAME)
         cursor = connection.cursor()
         cursor.execute(
-            "CREATE TABLE IF NOT EXISTS market (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, side TEXT, timestamp TEXT, pennies INTEGER)")
+            """CREATE TABLE IF NOT EXISTS ask (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, 
+            timestamp TEXT, pennies INTEGER)"""
+        )
         cursor.execute(
-            "CREATE TABLE IF NOT EXISTS wallet (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, symbol TEXT, timestamp TEXT, available FLOAT)")
+            """CREATE TABLE IF NOT EXISTS bid (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, 
+            timestamp TEXT, pennies INTEGER)"""
+        )
+        cursor.execute(
+            """CREATE TABLE IF NOT EXISTS trade (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, 
+            timestamp TEXT, pennies INTEGER)"""
+        )
+        cursor.execute(
+            """CREATE TABLE IF NOT EXISTS wallet (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, symbol TEXT, 
+            timestamp TEXT, available FLOAT)""")
+
+        connection.commit()
+        cursor.close()
 
         self.exchanges = {
             str(CoinbaseExchange):
@@ -34,7 +48,6 @@ class Conductor:
 
         self.follow_market()
         self.follow_wallet()
-        time.sleep(1)
 
     def buy_btc_sell_btc(self, exchange_to_buy_btc: str, exchange_to_sell_btc: str,
                          min_ask: float, max_bid: float) -> None:
@@ -59,26 +72,31 @@ class Conductor:
     def follow_wallet_thread(self):
         while True:
             for ex in self.exchanges.values():
+                exchange: str = util.alphanumeric(str(type(ex)))
                 try:
                     balances: dict = ex.get_balances()
                     now = datetime.now(tz=util.TZ_UTC)
                     timestamp = now.strftime(util.DATETIME_FORMAT)
                     connection = sqlite3.connect(util.DB_NAME)
                     cursor = connection.cursor()
-                    sqlite_insert_query = """INSERT INTO wallet
+                    delete_query = f"DELETE FROM wallet WHERE exchange='{exchange}'"
+                    cursor.execute(delete_query)
+
+                    insert_query = """INSERT INTO wallet
                                       (exchange, symbol, timestamp, available) 
                                       VALUES (?, ?, ?, ?);"""
-                    records = [(str(type(ex)), 'BTC', timestamp, float(balances.get('BTC'))),
-                               (str(type(ex)), 'USD', timestamp, float(balances.get('USD')))]
-                    cursor.executemany(sqlite_insert_query, records)
+                    records = [(exchange, 'BTC', timestamp, float(balances.get('BTC'))),
+                               (exchange, 'USD', timestamp, float(balances.get('USD')))]
+#TODO: Add ETH
+                    cursor.executemany(insert_query, records)
                     connection.commit()
                     cursor.close()
                 except KeyError as key_error:
                     print(f'Failed to get balances from {ex}\n{key_error}')
                 except sqlite3.Error as sql_error:
-                    print(f'SQL error: {sql_error}')
+                    print(f'CW SQL error: {sql_error}')
                 except Exception as ex:
-                    print(f'Exception: {ex}')
+                    print(f'CW Exception: {ex}')
                 finally:
                     if connection:
                         connection.close()
@@ -93,6 +111,7 @@ class Conductor:
     def follow_market_thread(self):
         while True:
             for ex in self.exchanges.values():
+                exchange: str = util.alphanumeric(str(type(ex)))
                 try:
                     ticker: dict = ex.get_btc_ticker()
                     now = datetime.now(tz=util.TZ_UTC)
@@ -104,24 +123,36 @@ class Conductor:
                     if not ask or not bid:
                         raise Exception('Did not get values from ticker')
 
-                    sqlite_insert_query = """INSERT INTO market
-                                      (exchange, pair, side, timestamp, pennies) 
-                                      VALUES (?, ?, ?, ?, ?);"""
-                    records = [(str(type(ex)), util.BTC_USD_PAIR, util.ASK_KEY, timestamp, int(ask * 100)),
-                               (str(type(ex)), util.BTC_USD_PAIR, util.BID_KEY, timestamp, int(bid * 100))]
-                    cursor.executemany(sqlite_insert_query, records)
+                    delete_ask_query = f"DELETE FROM ask WHERE exchange='{exchange}'"
+                    cursor.execute(delete_ask_query)
+                    insert_ask_query = """INSERT INTO ask
+                                      (exchange, pair, timestamp, pennies) 
+                                      VALUES (?, ?, ?, ?);"""
+                    cursor.execute(insert_ask_query, (exchange, util.BTC_USD_PAIR,
+                                                      timestamp, int(ask * 100)))
+                    delete_bid_query = f"DELETE FROM bid WHERE exchange='{exchange}'"
+                    cursor.execute(delete_bid_query)
+                    insert_bid_query = """INSERT INTO bid
+                                      (exchange, pair, timestamp, pennies) 
+                                      VALUES (?, ?, ?, ?);"""
+                    cursor.execute(insert_bid_query, (exchange, util.BTC_USD_PAIR,
+                                                      timestamp, int(bid * 100)))
+
+
+#TODO: ETH
+#TODO: last trade?
                     connection.commit()
                     cursor.close()
                 except TimeoutError as timeout_error:
-                    print(f'Timeout error: {timeout_error}')
+                    print(f'FM Timeout error: {timeout_error} {exchange}')
                 except ValueError as value_error:
-                    print(f'Value error: {value_error}')
+                    print(f'FM Value error: {value_error} {exchange}')
                 except ConnectionError as connection_error:
-                    print(f'Connection error: {connection_error}')
+                    print(f'FM Connection error: {connection_error} {exchange}')
                 except sqlite3.Error as sqlite3_error:
-                    print(f'SQLite3 error: {sqlite3_error}')
+                    print(f'FM SQLite3 error: {sqlite3_error} {exchange}')
                 except Exception as e:
-                    print(f'Exception: {e}')
+                    print(f'FM Exception: {e} {exchange}')
                 finally:
                     if connection:
                         connection.close()
@@ -136,15 +167,17 @@ class Conductor:
         try:
             connection = sqlite3.connect(util.DB_NAME)
             cursor = connection.cursor()
-
-            sqlite_select_query = """SELECT id, exchange, pair, side, MAX(timestamp), pennies FROM market WHERE side == 'BID' GROUP BY exchange, pair, side ORDER BY id DESC LIMIT 10"""
-            # NOTE: we should get 3 records, 3 exchanges, 1 pair, 1 side (bids)
+            sqlite_select_bid_query = """SELECT id, exchange, pair, side, MAX(timestamp), pennies FROM bid 
+                                        WHERE pair=? GROUP BY exchange, pair, side ORDER BY id DESC LIMIT 10"""
+            # NOTE: we should get 3 records, 3 exchanges, 1 pair
             # TODO: make sure the records are recent.
 
-            cursor.execute(sqlite_select_query)
+            cursor.execute(sqlite_select_bid_query, util.BTC_USD_PAIR)
             records = cursor.fetchall()
             if len(records) != 3:
                 print(f'UNKNOWN ERROR: {records}')
+            print(records)
+            exit()
 
             for r in records:
                 exchange = r[1]
@@ -154,11 +187,11 @@ class Conductor:
 
             return None
         except sqlite3.Error as sql_error:
-            print(f'SQL error: {sql_error}')
+            print(f'WIN SQL error: {sql_error}')
         except TypeError as type_error:
-            print(f'Type error: {type_error}')
+            print(f'WIN Type error: {type_error}')
         except Exception as e:
-            print(f'Exception: {e}')
+            print(f'WIN Exception: {e}')
         finally:
             if connection:
                 connection.close()

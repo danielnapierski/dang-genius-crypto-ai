@@ -98,9 +98,10 @@ def get_balances() -> dict:
         connection = sqlite3.connect(util.DB_NAME)
         cursor = connection.cursor()
 
-        sqlite_select_query = """SELECT id, exchange, symbol, MAX(timestamp), available FROM wallet GROUP BY exchange, symbol ORDER BY id DESC LIMIT 10"""
+        wallet_query = """SELECT id, exchange, symbol, MAX(timestamp), available FROM wallet GROUP BY exchange, symbol 
+                            ORDER BY id DESC"""
         # NOTE: we should get 6 records, 3 exchanges, 2 symbols
-        cursor.execute(sqlite_select_query)
+        cursor.execute(wallet_query)
         records = cursor.fetchall()
         if len(records) != 6:
             print("UNKNOWN ERROR")

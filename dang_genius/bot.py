@@ -4,13 +4,15 @@ from dang_genius.wallet import check_swap_funding as check_swap_funding
 import dang_genius.util as util
 from dang_genius.conductor import Conductor
 
-
 def bot() -> None:
     conductor = Conductor()
     max_spread: float = 0.0
 
-    conductor.buy_the_dip()
-    conductor.take_the_win()
+#    conductor.buy_the_dip()
+#    conductor.take_the_win()
+
+    time.sleep(5)
+#TODO: replace with prompt
 
     while True:
         opportunity = mc(conductor.fee_estimate)
