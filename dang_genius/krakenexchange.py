@@ -25,7 +25,10 @@ class KrakenExchange(Exchange):
     @property
     def balances(self) -> dict:
         b = self.private_client.query_private('Balance')['result']
-        return {'BTC': (float(b.get('XXBT'))), 'USD': (float(b.get('ZUSD'))), 'ETH': (float(b.get('XETH')))}
+        xxbt = float(b.get('XXBT'))
+        zusd = float(b.get('ZUSD'))
+        xeth = float(b.get('XETH'))
+        return {'BTC': float(f'{xxbt: .5f}'), 'USD': float(f'{zusd: .2f}'), 'ETH': float(f'{xeth: .5f}')}
 
     @staticmethod
     def _get_kraken_signature(urlpath, data, secret):
