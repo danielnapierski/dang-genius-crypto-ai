@@ -5,7 +5,8 @@ from threading import Thread
 from datetime import datetime
 
 from dotenv import load_dotenv
-import dang_genius.util as util
+import dang_genius.util as dgu
+from dang_genius.bitstampexchange import BitstampExchange
 from dang_genius.coinbaseexchange import CoinbaseExchange
 from dang_genius.geminiexchange import GeminiExchange
 from dang_genius.krakenexchange import KrakenExchange
@@ -17,34 +18,37 @@ class Conductor:
         self.fee_estimate = float(os.environ.get('FEE-ESTIMATE'))
         self.btc_amount = float(os.environ.get('BTC-SWAP-AMT'))
         self.usd_amount = float(os.environ.get('USD-SWAP-AMT'))
-        connection = sqlite3.connect(util.DB_NAME)
+        connection = sqlite3.connect(dgu.DB_NAME)
         cursor = connection.cursor()
         cursor.execute(
-            """CREATE TABLE IF NOT EXISTS ask (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, 
-            timestamp TEXT, pennies INTEGER)"""
+            """CREATE TABLE IF NOT EXISTS ask 
+            (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, timestamp TEXT, pennies INTEGER)"""
         )
         cursor.execute(
-            """CREATE TABLE IF NOT EXISTS bid (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, 
-            timestamp TEXT, pennies INTEGER)"""
+            """CREATE TABLE IF NOT EXISTS bid
+            (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, timestamp TEXT, pennies INTEGER)"""
         )
         cursor.execute(
-            """CREATE TABLE IF NOT EXISTS trade (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, 
-            timestamp TEXT, pennies INTEGER)"""
+            """CREATE TABLE IF NOT EXISTS trade
+            (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, timestamp TEXT, pennies INTEGER)"""
         )
         cursor.execute(
-            """CREATE TABLE IF NOT EXISTS wallet (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, symbol TEXT, 
-            timestamp TEXT, available FLOAT)""")
+            """CREATE TABLE IF NOT EXISTS wallet
+            (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, symbol TEXT, timestamp TEXT, available FLOAT)""")
 
         connection.commit()
         cursor.close()
 
         self.exchanges = {
+            str(BitstampExchange):
+                BitstampExchange(os.environ.get('BS-API-KEY'), os.environ.get('BS-API-SECRET'),
+                                 os.environ.get('BS-CLIENT-ID')),
             str(CoinbaseExchange):
-                CoinbaseExchange(os.environ.get('CB-API-KEY'), os.environ.get('CB-API-SECRET'), self.btc_amount),
+                CoinbaseExchange(os.environ.get('CB-API-KEY'), os.environ.get('CB-API-SECRET')),
             str(GeminiExchange):
-                GeminiExchange(os.environ.get('GE-API-KEY'), os.environ.get('GE-API-SECRET'), self.btc_amount),
+                GeminiExchange(os.environ.get('GE-API-KEY'), os.environ.get('GE-API-SECRET')),
             str(KrakenExchange):
-                KrakenExchange(os.environ.get('KR-API-KEY'), os.environ.get('KR-API-SECRET'), self.btc_amount)}
+                KrakenExchange(os.environ.get('KR-API-KEY'), os.environ.get('KR-API-SECRET'))}
 
         self.follow_market()
         self.follow_wallet()
@@ -72,12 +76,12 @@ class Conductor:
     def follow_wallet_thread(self):
         while True:
             for ex in self.exchanges.values():
-                exchange: str = util.alphanumeric(str(type(ex)))
+                exchange: str = dgu.alphanumeric(str(type(ex)))
                 try:
-                    balances: dict = ex.get_balances()
-                    now = datetime.now(tz=util.TZ_UTC)
-                    timestamp = now.strftime(util.DATETIME_FORMAT)
-                    connection = sqlite3.connect(util.DB_NAME)
+                    balances: dict = ex.balances()
+                    now = datetime.now(tz=dgu.TZ_UTC)
+                    timestamp = now.strftime(dgu.DATETIME_FORMAT)
+                    connection = sqlite3.connect(dgu.DB_NAME)
                     cursor = connection.cursor()
                     delete_query = f"DELETE FROM wallet WHERE exchange='{exchange}'"
                     cursor.execute(delete_query)
@@ -111,32 +115,28 @@ class Conductor:
     def follow_market_thread(self):
         while True:
             for ex in self.exchanges.values():
-                exchange: str = util.alphanumeric(str(type(ex)))
+                exchange: str = dgu.alphanumeric(str(type(ex)))
                 try:
-                    ticker: dict = ex.get_btc_ticker()
-                    now = datetime.now(tz=util.TZ_UTC)
-                    timestamp = now.strftime(util.DATETIME_FORMAT)
-                    ask = ticker.get(util.ASK_KEY)
-                    bid = ticker.get(util.BID_KEY)
-                    connection = sqlite3.connect(util.DB_NAME)
+                    ticker: dict = ex.tickers
+                    now = datetime.now(tz=dgu.TZ_UTC)
+                    timestamp = now.strftime(dgu.DATETIME_FORMAT)
+                    ask = ticker.get(dgu.ASK_KEY)
+                    bid = ticker.get(dgu.BID_KEY)
+                    connection = sqlite3.connect(dgu.DB_NAME)
                     cursor = connection.cursor()
                     if not ask or not bid:
                         raise Exception('Did not get values from ticker')
 
-                    delete_ask_query = f"DELETE FROM ask WHERE exchange='{exchange}'"
-                    cursor.execute(delete_ask_query)
-                    insert_ask_query = """INSERT INTO ask
+                    cursor.execute(f"DELETE FROM ask WHERE exchange='{exchange}'")
+                    cursor.execute("""INSERT INTO ask
                                       (exchange, pair, timestamp, pennies) 
-                                      VALUES (?, ?, ?, ?);"""
-                    cursor.execute(insert_ask_query, (exchange, util.BTC_USD_PAIR,
-                                                      timestamp, int(ask * 100)))
-                    delete_bid_query = f"DELETE FROM bid WHERE exchange='{exchange}'"
-                    cursor.execute(delete_bid_query)
-                    insert_bid_query = """INSERT INTO bid
+                                      VALUES (?, ?, ?, ?);""", (exchange, dgu.BTC_USD_PAIR,
+                                                                timestamp, int(ask * 100)))
+                    cursor.execute(f"DELETE FROM bid WHERE exchange='{exchange}'")
+                    cursor.execute("""INSERT INTO bid
                                       (exchange, pair, timestamp, pennies) 
-                                      VALUES (?, ?, ?, ?);"""
-                    cursor.execute(insert_bid_query, (exchange, util.BTC_USD_PAIR,
-                                                      timestamp, int(bid * 100)))
+                                      VALUES (?, ?, ?, ?);""", (exchange, dgu.BTC_USD_PAIR,
+                                                                timestamp, int(bid * 100)))
 
 
 #TODO: ETH
@@ -165,14 +165,14 @@ class Conductor:
 # get the current bids for each exchange
 # when bids go up by 1% at any exchange, SELL IT ALL
         try:
-            connection = sqlite3.connect(util.DB_NAME)
+            connection = sqlite3.connect(dgu.DB_NAME)
             cursor = connection.cursor()
             sqlite_select_bid_query = """SELECT id, exchange, pair, side, MAX(timestamp), pennies FROM bid 
                                         WHERE pair=? GROUP BY exchange, pair, side ORDER BY id DESC LIMIT 10"""
             # NOTE: we should get 3 records, 3 exchanges, 1 pair
             # TODO: make sure the records are recent.
 
-            cursor.execute(sqlite_select_bid_query, util.BTC_USD_PAIR)
+            cursor.execute(sqlite_select_bid_query, dgu.BTC_USD_PAIR)
             records = cursor.fetchall()
             if len(records) != 3:
                 print(f'UNKNOWN ERROR: {records}')

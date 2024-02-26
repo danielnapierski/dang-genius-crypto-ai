@@ -12,7 +12,10 @@ MIN_ASK_KEY: str = 'MIN_ASK'
 ASK_KEY: str = 'ASK'
 BID_KEY: str = 'BID'
 BTC_USD_PAIR: str = 'BTC_USD'
+ETH_USD_PAIR: str = 'ETH_USD'
+ETH_BTC_PAIR: str = 'ETH_BTC'
 DATETIME_FORMAT: str = '%Y-%m-%dT%H:%M:%S.%fZ'
+
 
 def alphanumeric(s: str) -> str:
     return "".join([ch for ch in s if ch in (ascii_letters + digits)])
