@@ -12,7 +12,10 @@ def bot() -> None:
 #    conductor.take_the_win()
 
     time.sleep(5)
-#TODO: replace with prompt
+    print('Are you ready to rumble?')
+    input_text = input()
+    print(input_text)
+# TODO: add go/no go
 
     while True:
         opportunity = mc(conductor.fee_estimate)

@@ -2,6 +2,7 @@ dependencies:
 - python=3.12
 - pip
 - pip:
+  - BitstampClient
   - coinbasepro
   - gemini_api
   - krakenex

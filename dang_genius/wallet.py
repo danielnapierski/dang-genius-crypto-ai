@@ -91,21 +91,15 @@ def gemini_get_balances() -> dict:
     GE_API_KEY = os.environ.get('GE-API-KEY')
     GE_API_SECRET = os.environ.get('GE-API-SECRET')
     BTC_SWAP_AMT = float(os.environ.get('BTC-SWAP-AMT'))
-    return GeminiExchange(GE_API_KEY, GE_API_SECRET, BTC_SWAP_AMT).get_balances()
+    return GeminiExchange(GE_API_KEY, GE_API_SECRET, BTC_SWAP_AMT).balances()
 
 def get_balances() -> dict:
     try:
         connection = sqlite3.connect(util.DB_NAME)
         cursor = connection.cursor()
-
-        wallet_query = """SELECT id, exchange, symbol, MAX(timestamp), available FROM wallet GROUP BY exchange, symbol 
-                            ORDER BY id DESC"""
-        # NOTE: we should get 6 records, 3 exchanges, 2 symbols
-        cursor.execute(wallet_query)
+        cursor.execute("""SELECT id, exchange, symbol, MAX(timestamp), available FROM wallet 
+                        GROUP BY exchange, symbol ORDER BY id DESC""")
         records = cursor.fetchall()
-        if len(records) != 6:
-            print("UNKNOWN ERROR")
-
         result = {}
         for r in records:
             exchange = r[1]

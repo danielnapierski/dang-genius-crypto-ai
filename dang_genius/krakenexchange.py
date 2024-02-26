@@ -7,27 +7,28 @@ import urllib.parse
 
 import krakenex
 import requests
-import dang_genius.util as util
+import dang_genius.util as dgu
 from dang_genius.exchange import Exchange
 
 
 class KrakenExchange(Exchange):
 
-    def __init__(self, key: str, secret: str, btc_amount: float):
-        super().__init__(key, secret, btc_amount)
+    def __init__(self, key: str, secret: str):
+        super().__init__(key, secret)
         self.api_url = "https://api.kraken.com"
-        self.BTC_USD_PAIR: str = "XBTUSD"
+        self.BTC_USD_PAIR: str = "XXBTZUSD"
+        self.ETH_USD_PAIR: str = "XETHZUSD"
+        self.ETH_BTC_PAIR: str = "XETHXXBT"
         self.public_client = krakenex.API()
-        self.public_pair: str = 'XXBTZUSD'
-        self.private_client = krakenex.API(self.key, self.secret)
+        self.private_client = krakenex.API(self._key, self._secret)
 
-    def get_balances(self) -> dict:
+    @property
+    def balances(self) -> dict:
         b = self.private_client.query_private('Balance')['result']
-        btc_b = float(b.get('XXBT'))
-        usd_b = float(b.get('ZUSD'))
-        return {'BTC': btc_b, 'USD': usd_b}
+        return {'BTC': (float(b.get('XXBT'))), 'USD': (float(b.get('ZUSD'))), 'ETH': (float(b.get('XETH')))}
 
-    def get_kraken_signature(self, urlpath, data, secret):
+    @staticmethod
+    def _get_kraken_signature(urlpath, data, secret):
         postdata = urllib.parse.urlencode(data)
         encoded = (str(data['nonce']) + postdata).encode()
         message = urlpath.encode() + hashlib.sha256(encoded).digest()
@@ -35,79 +36,45 @@ class KrakenExchange(Exchange):
         sigdigest = base64.b64encode(mac.digest())
         return sigdigest.decode()
 
-    def kraken_request(self, uri_path, data, api_key, api_sec):
-        headers = {'API-Key': api_key, 'API-Sign': self.get_kraken_signature(uri_path, data, api_sec)}
-        req = requests.post((self.api_url + uri_path), headers=headers, data=data)
-        return req
-
-    def buy_btc(self):
-        self.trade(self.BTC_USD_PAIR, "buy")
-
-    def sell_btc(self):
-        print('KRAKEN SELLING')
-        self.trade(self.BTC_USD_PAIR, "sell")
-
-    def set_limits(self, min_ask: float, max_bid: float) -> None:
-        self.min_ask = min_ask
-        self.max_bid = max_bid
+    def _kraken_request(self, uri_path, data, api_key, api_sec):
+        headers = {'API-Key': api_key, 'API-Sign': self._get_kraken_signature(uri_path, data, api_sec)}
+        return requests.post((self.api_url + uri_path), headers=headers, data=data)
 
     def get_btc_ticker(self):
         return self.get_ticker(self.BTC_USD_PAIR)
 
     def get_ticker(self, pair: str):
-        kraken_public_result = (
-            self.public_client.query_public('Depth', {'pair': self.public_pair, 'count': '10'}).get('result').get(self.public_pair))
-        ask: float = float(kraken_public_result.get('asks')[0][0])
-        bid: float = float(kraken_public_result.get('bids')[0][0])
-        return {util.ASK_KEY: ask, util.BID_KEY: bid}
+        tic = self.public_client.query_public('Depth',
+                                               {'pair': pair, 'count': '10'}).get('result').get(pair)
+        return {dgu.ASK_KEY: (float(tic.get('asks')[0][0])), dgu.BID_KEY: (float(tic.get('bids')[0][0]))}
 
-        # $ ./krakenapi AddOrder pair=xdgusd type=buy ordertype=limit price=1.00 volume=50
-        # timeinforce=ioc{"error":[],"result":{"txid":["OZS2KT-JVN2E-J2XM7Z"],"descr":{"order":"buy 50.00000000 XDGUSD @ limit 1.0000000"}}}
+    @property
+    def tickers(self) -> dict[str, dict | None]:
+        try:
+            return {dgu.BTC_USD_PAIR: self.get_ticker(self.BTC_USD_PAIR),
+                    dgu.ETH_USD_PAIR: self.get_ticker(self.ETH_USD_PAIR),
+                    dgu.ETH_BTC_PAIR: self.get_ticker(self.ETH_BTC_PAIR)}
+        except Exception as e:
+            print(f'Gemini tickers exception: {e}')
+            return {}
 
-    def trade(self, pair: str, side: str):
-        print(f'TRADE {side} {self.btc_amount:.5f} {pair} KRAKEN ...')
-        room = float((self.max_bid - self.min_ask) / 3.0)
-        price = (self.min_ask + room) if side == 'buy' else (self.max_bid - room)
-        resp = self.kraken_request('/0/private/AddOrder', {
+    def trade(self, pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
+        print(f'TRADE {side} {amount:.5f} {pair} {limit:.1f} KRAKEN ...')
+        response = self._kraken_request('/0/private/AddOrder', {
             "nonce": str(int(1000 * time.time())),
             "ordertype": "limit",
-            "price": f'{price:.1f}',
+            "price": f'{limit: .1f}',
             "type": side,
-            "volume": self.btc_amount,
+            "volume": amount,
             "pair": pair,
             "timeinforce": "ioc"
-        }, self.key, self.secret)
+        }, self._key, self._secret)
 
-        print(f'STARTED {side} {self.btc_amount:.5f} {pair} KRAKEN')
-        text_resp = getattr(resp, 'text')
-        j = json.loads(text_resp)
-        error = j.get('error')
+        print(f'STARTED {side} {amount: .5f} {pair} KRAKEN')
+        json_response = json.loads(getattr(response, 'text'))
+        error = json_response.get('error')
         if error:
             print(f'KRAKEN ERROR: {error}')
         else:
-            print(f'KRAKEN SUCCESS: {j}')
+            print(f'KRAKEN SUCCESS: {json_response}')
         print('</KRAKEN>')
-
-    def market_trade(self, pair: str, side: str):
-        print(f'TRADE {side} {self.btc_amount:.5f} {pair} KRAKEN ...')
-        # Construct the request and print the result
-        resp = self.kraken_request('/0/private/AddOrder', {
-            "nonce": str(int(1000 * time.time())),
-            "ordertype": "market",
-            "type": side,
-            "volume": self.btc_amount,
-            "pair": pair,
-        }, self.key, self.secret)
-
-        print(f'STARTED {side} {self.btc_amount:.5f} {pair} KRAKEN')
-        text_resp = getattr(resp, 'text')
-        j = json.loads(text_resp)
-        error = j.get('error')
-        if error:
-            print(f'KRAKEN ERROR: {error}')
-        else:
-            print(f'KRAKEN SUCCESS: {j}')
-        print('</KRAKEN>')
-
-# KRAKEN SUCCESS: {'error': [], 'result': {'txid': ['O6R2WB-HQXUF-HIF7VC'], 'descr': {'order': 'buy 0.00010000 XBTUSD @ limit 33706.4'}}}
-# KRAKEN SUCCESS: {'error': [], 'result': {'txid': ['OJV7EF-ETEL6-PBIJFF'], 'descr': {'order': 'buy 0.00010000 XBTUSD @ limit 33706.4'}}}

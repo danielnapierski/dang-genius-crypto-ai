@@ -33,7 +33,7 @@ Use `brew` to install and upgrade conda:
 ```
 # To create an environment, use
 #
-#     $ conda env create --name dg-3.11 --file environment.yml 
+#     $ conda env create --name dg-3.12 --file environment.yml 
 #
 # To activate this environment, use
 #
