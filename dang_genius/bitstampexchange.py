@@ -18,17 +18,18 @@ class BitstampExchange(Exchange):
         try:
             b = self.trading_client.account_balance(False,False)
             btc = 0.0
-            if 'btc_available' in b.keys():
+            keys = b.keys()
+            if 'btc_available' in keys:
                 ba = float(b['btc_available'])
                 btc = float(f'{ba: .5f}')
-            usd = 0.0
-            if 'usd_available' in b.keys():
-                ua = float(b['usd_available'])
-                usd = float(f'{ua: .2f}')
             eth = 0.0
-            if 'eth_available' in b.keys():
+            if 'eth_available' in keys:
                 ea = float(b['eth_available'])
                 eth = float(f'{ea: .5f}')
+            usd = 0.0
+            if 'usd_available' in keys:
+                ua = float(b['usd_available'])
+                usd = float(f'{ua: .2f}')
             return {'BTC': btc, 'USD': usd, 'ETH': eth}
         except Exception as e:
             print('BS balances exception')
@@ -42,9 +43,22 @@ class BitstampExchange(Exchange):
     @property
     def tickers(self) -> dict[str, dict | None] | None:
         try:
-            return {dgu.BTC_USD_PAIR: (self.ticker("btc", "usd")),
-                    dgu.ETH_USD_PAIR: (self.ticker("eth", "usd")),
-                    dgu.ETH_BTC_PAIR: (self.ticker("eth", "btc"))}
+            tics = self.public_client.ticker(False, False)
+            btc_usd = None
+            eth_usd = None
+            eth_btc = None
+            for i in tics:
+                p = i['pair']
+                if p == 'BTC/USD':
+                    btc_usd = {dgu.ASK_KEY: float(i['ask']), dgu.BID_KEY: float(i['bid'])}
+                if p == 'ETH/USD':
+                    eth_usd = {dgu.ASK_KEY: float(i['ask']), dgu.BID_KEY: float(i['bid'])}
+                if p == 'ETH/BTC':
+                    eth_btc = {dgu.ASK_KEY: float(i['ask']), dgu.BID_KEY: float(i['bid'])}
+                if btc_usd and eth_usd and eth_btc:
+                    break
+
+            return {dgu.BTC_USD_PAIR: btc_usd, dgu.ETH_USD_PAIR: eth_usd, dgu.ETH_BTC_PAIR: btc_usd}
         except Exception as e:
             print('BS tickers exception')
             pprint.pprint(e)
