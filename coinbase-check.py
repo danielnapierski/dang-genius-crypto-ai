@@ -15,6 +15,18 @@ load_dotenv()
 CB_API_KEY = os.environ.get('CB-API-KEY')
 CB_SECRET_KEY = os.environ.get('CB-API-SECRET')
 
+#CB_API_KEY = f'"{os.environ.get('CB-API-KEY')}"'
+#CB_SECRET_KEY = f'"{os.environ.get('CB-API-SECRET')}"'
+
+#CB_API_KEY = str.join('', CB_API_KEY.split('\n')[1:-2])
+CB_SECRET_KEY = str.join('', CB_SECRET_KEY.split('\n')[1:-2])
+
+#CB_API_KEY = str.join('\\n', CB_API_KEY.split('\n'))
+#CB_SECRET_KEY = str.join('\\n', CB_SECRET_KEY.split('\n'))
+
+
+print(f'{CB_API_KEY}\n{CB_SECRET_KEY}')
+
 
 def cb_connect(url_path, limit=50, cursor=''):
     url_prefix = 'https://coinbase.com'

@@ -86,28 +86,37 @@ class GeminiExchange(Exchange):
             print(f'Gemini tickers exception: {e}')
             return {}
 
-    def trade(self, pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
+    def match_pair(self, dgu_pair: str):
+        if dgu_pair == dgu.BTC_USD_PAIR:
+            return self.BTC_USD_PAIR
+        if dgu_pair == dgu.ETH_USD_PAIR:
+            return self.ETH_USD_PAIR
+        if dgu_pair == dgu.ETH_BTC_PAIR:
+            return self.ETH_BTC_PAIR
+        raise Exception(f'Unsupported pair: {dgu_pair}')
+
+    def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
         # https://docs.gemini.com/rest-api/#new-order
-        payload = {
-            "request": self.order_endpoint,
-            "nonce": self._get_nonce(),
-            "symbol": pair,
-            "amount": f'{amount: 0.5f}',
-            "side": side,
-            "type": "exchange limit",
-            "price": f'{limit: .2f}',
-            "options": ["immediate-or-cancel"]
-        }
-
-        b64 = base64.b64encode(json.dumps(payload).encode())
-        request_headers = {'Content-Type': "text/plain",
-                           'Content-Length': "0",
-                           'X-GEMINI-APIKEY': self._key,
-                           'X-GEMINI-PAYLOAD': b64,
-                           'X-GEMINI-SIGNATURE': (hmac.new(self._secret.encode(), b64, hashlib.sha384).hexdigest()),
-                           'Cache-Control': "no-cache"}
-
         try:
+            payload = {
+                "request": self.order_endpoint,
+                "nonce": self._get_nonce(),
+                "symbol": self.match_pair(dgu_pair),
+                "amount": float(f'{amount: 0.5f}'),
+                "side": side,
+                "type": "exchange limit",
+                "price": float(f'{limit: .2f}'),
+                "options": ["immediate-or-cancel"]
+            }
+
+            b64 = base64.b64encode(json.dumps(payload).encode())
+            request_headers = {'Content-Type': "text/plain",
+                               'Content-Length': "0",
+                               'X-GEMINI-APIKEY': self._key,
+                               'X-GEMINI-PAYLOAD': b64,
+                               'X-GEMINI-SIGNATURE': (hmac.new(self._secret.encode(), b64, hashlib.sha384).hexdigest()),
+                               'Cache-Control': "no-cache"}
+
             new_order = requests.post(self.api_url + self.order_endpoint, data=None, headers=request_headers).json()
             if new_order.get('result') == 'error':
                 print(f'GEMINI ERROR: {new_order}')

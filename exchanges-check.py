@@ -9,7 +9,7 @@ from dang_genius.coinbaseexchange import CoinbaseExchange
 from dang_genius.geminiexchange import GeminiExchange
 from dang_genius.krakenexchange import KrakenExchange
 
-print('Loading...')
+print('Loading exchanges ...')
 
 load_dotenv()
 be = BitstampExchange(os.environ.get('BS-API-KEY'), os.environ.get('BS-API-SECRET'), os.environ.get('BS-CLIENT-ID'))
@@ -53,8 +53,8 @@ print(f'[{(end - start): .2f} seconds]')
 start = time.time()
 get = ge.tickers
 end = time.time()
-pprint.pprint(get)
 pprint.pprint(geb)
+pprint.pprint(get)
 print(f'[{(end - start): .2f} seconds]')
 
 print('\nKraken')

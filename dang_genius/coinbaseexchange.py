@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import pprint
 import time
 from datetime import datetime
 from datetime import timedelta
@@ -56,6 +57,7 @@ class CoinbaseExchange(Exchange):
         accounts = []
         while has_next:
             response = self.coinbase_connect(url_path='/api/v3/brokerage/accounts', limit=50, cursor=cursor)
+            pprint.pprint(response)
             json_accounts = json.loads(response.text)
             has_next = json_accounts['has_next']
             cursor = json_accounts['cursor']
@@ -165,42 +167,48 @@ class CoinbaseExchange(Exchange):
 
             time.sleep(0.5)
 
+    def match_pair(self, dgu_pair: str):
+        if dgu_pair == dgu.BTC_USD_PAIR:
+            return self.BTC_USD_PAIR
+        if dgu_pair == dgu.ETH_USD_PAIR:
+            return self.ETH_USD_PAIR
+        if dgu_pair == dgu.ETH_BTC_PAIR:
+            return self.ETH_BTC_PAIR
+        raise Exception(f'Unsupported pair: {dgu_pair}')
+
     #    https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
-    def trade(self, pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
-        #    def trade(self, pair: str, side: str):
-        #        room = float((self.max_bid - self.min_ask) / 3.0)
-        #        price = (self.min_ask + room) if side == 'buy' else (self.max_bid - room)
-        now = datetime.now(tz=dgu.TZ_UTC)
-        client_order_id = 'CB-order-' + now.strftime(dgu.DATETIME_FORMAT)
-        end_time = now + timedelta(milliseconds=2001)
-        ets = end_time.strftime(dgu.DATETIME_FORMAT)
-        timestamp = str(int(time.time()))
-        payload = {
-            "side": side,
-            "client_order_id": client_order_id,
-            "product_id": pair,
-            "order_configuration": {
-                "limit_limit_gtd": {
-                    "base_size": f'{amount: 0.5f}',
-                    "limit_price": f'{limit: 0.2f}',
-                    "end_time": ets,
-                    "post_only": False
+    def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
+        try:
+            now = datetime.now(tz=dgu.TZ_UTC)
+            client_order_id = 'CB-order-' + now.strftime(dgu.DATETIME_FORMAT)
+            end_time = now + timedelta(milliseconds=2001)
+            ets = end_time.strftime(dgu.DATETIME_FORMAT)
+            timestamp = str(int(time.time()))
+            payload = {
+                "side": side,
+                "client_order_id": client_order_id,
+                "product_id": self.match_pair(dgu_pair),
+                "order_configuration": {
+                    "limit_limit_gtd": {
+                        "base_size": f'{amount:0.5f}',
+                        "limit_price": f'{limit:0.2f}',
+                        "end_time": ets,
+                        "post_only": False
+                    }
                 }
             }
-        }
-#        print(f'TIMESTAMP: {timestamp}')
-        message = timestamp + "POST" + self.order_endpoint + json.dumps(payload)
-        signature = hmac.new(self._secret.encode('utf-8'), message.encode('utf-8'), digestmod=hashlib.sha256).digest()
-        headers = {
-            'CB-ACCESS-SIGN': signature.hex(),
-            'CB-ACCESS-TIMESTAMP': timestamp,
-            'CB-ACCESS-KEY': self._key,
-            'User-Agent': 'my-user-agent',
-            'accept': "application/json",
-            'Content-Type': 'application/json'
-        }
+            message = timestamp + "POST" + self.order_endpoint + json.dumps(payload)
+            signature = hmac.new(self._secret.encode('utf-8'), message.encode('utf-8'),
+                                 digestmod=hashlib.sha256).digest()
+            headers = {
+                'CB-ACCESS-SIGN': signature.hex(),
+                'CB-ACCESS-TIMESTAMP': timestamp,
+                'CB-ACCESS-KEY': self._key,
+                'User-Agent': 'my-user-agent',
+                'accept': "application/json",
+                'Content-Type': 'application/json'
+            }
 
-        try:
             new_order = requests.post(self.api_url + self.order_endpoint,
                                       data=json.dumps(payload), headers=headers).json()
             if new_order.get('result') == 'error':
@@ -216,9 +224,20 @@ class CoinbaseExchange(Exchange):
                         response = new_order.get('success_response')
                         print(f'CB SUCCESS: {response}')
                         order_id = new_order.get('order_id')
-                        # TODO: product_id, side, client_order_id,
-                        # TODO: get actual execution price
+                        product_id = new_order.get('product_id')
+                        side = new_order.get('side')
+                        client_order_id = new_order.get('client_order_id')
+                        # TODO: get actual execution price and amount
                         config = new_order.get('order_configuration').get('limit_limit_gtd')
+                        print("ORDER:")
+                        print(new_order)
+                        # example: {'success': True, 'failure_reason': 'UNKNOWN_FAILURE_REASON',
+                        # 'order_id': '65dba34e-0796-493c-a422-bda3a928b881',
+                        # 'success_response': {'order_id': '65dba34e-0796-493c-a422-bda3a928b881',
+                        # 'product_id': 'BTC-USD', 'side': 'BUY', 'client_order_id':
+                        # 'CB-order-2024-02-27T15:23:54.162218Z'}, 'order_configuration': {'limit_limit_gtd':
+                        # {'base_size': '0.00010', 'limit_price': '57450.00',
+                        # 'end_time': '2024-02-27T15:23:56.163218Z', 'post_only': False}}}
                         tx_price = config.get('limit_price')
                         # TODO: timestampms
                         # TODO: add KEYS to self

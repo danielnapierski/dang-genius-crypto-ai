@@ -61,23 +61,32 @@ class KrakenExchange(Exchange):
             print(f'Gemini tickers exception: {e}')
             return {}
 
-    def trade(self, pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
-        print(f'TRADE {side} {amount:.5f} {pair} {limit:.1f} KRAKEN ...')
-        response = self._kraken_request('/0/private/AddOrder', {
-            "nonce": str(int(1000 * time.time())),
-            "ordertype": "limit",
-            "price": f'{limit: .1f}',
-            "type": side,
-            "volume": amount,
-            "pair": pair,
-            "timeinforce": "ioc"
-        }, self._key, self._secret)
+    def match_pair(self, dgu_pair: str):
+        if dgu_pair == dgu.BTC_USD_PAIR:
+            return self.BTC_USD_PAIR
+        if dgu_pair == dgu.ETH_USD_PAIR:
+            return self.ETH_USD_PAIR
+        if dgu_pair == dgu.ETH_BTC_PAIR:
+            return self.ETH_BTC_PAIR
+        raise Exception(f'Unsupported pair: {dgu_pair}')
 
-        print(f'STARTED {side} {amount: .5f} {pair} KRAKEN')
-        json_response = json.loads(getattr(response, 'text'))
-        error = json_response.get('error')
-        if error:
-            print(f'KRAKEN ERROR: {error}')
-        else:
-            print(f'KRAKEN SUCCESS: {json_response}')
-        print('</KRAKEN>')
+    def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
+        try:
+            response = self._kraken_request('/0/private/AddOrder', {
+                "nonce": str(int(1000 * time.time())),
+                "ordertype": "limit",
+                "price": f'{limit:.1f}',
+                "type": side.lower(),
+                "volume": amount,
+                "pair": self.match_pair(dgu_pair),
+                "timeinforce": "ioc"
+            }, self._key, self._secret)
+
+            json_response = json.loads(getattr(response, 'text'))
+            error = json_response.get('error')
+            if error:
+                print(f'KRAKEN ERROR: {error}')
+            else:
+                print(f'KRAKEN SUCCESS: {json_response}')
+        except Exception as e:
+            print(f'KRAKEN Exception: {e}')
