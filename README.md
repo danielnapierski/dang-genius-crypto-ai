@@ -37,11 +37,14 @@ Use `brew` to install and upgrade conda:
 #
 # To activate this environment, use
 #
-#     $ conda activate dg-3.11
+#     $ conda activate dg-3.12
 #
 # To deactivate an active environment, use
 #
 #     $ conda deactivate
+# To delete an environment, use
+#
+#     $ conda env remove -n dg-3.12
 ```
 
 ### git with ssh
