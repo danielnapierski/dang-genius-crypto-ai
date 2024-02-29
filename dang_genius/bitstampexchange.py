@@ -64,22 +64,18 @@ class BitstampExchange(Exchange):
             pprint.pprint(e)
             return None
 
-    def _decode_dgu_pair(self, dug_pair: str):
-        quote = None
-
-    def match_pair(self, dgu_pair: str):
-            if dgu_pair == dgu.BTC_USD_PAIR:
-                return ['btc', 'usd']
-            if dgu_pair == dgu.ETH_USD_PAIR:
-                return ['eth', 'usd']
-            if dgu_pair == dgu.ETH_BTC_PAIR:
-                return ['eth', 'btc']
-            raise Exception(f'Unsupported pair: {dgu_pair}')
+    def _decode_dgu_pair(self, dgu_pair: str):
+        if dgu_pair == dgu.BTC_USD_PAIR:
+            return ['btc', 'usd']
+        if dgu_pair == dgu.ETH_USD_PAIR:
+            return ['eth', 'usd']
+        if dgu_pair == dgu.ETH_BTC_PAIR:
+            return ['eth', 'btc']
+        raise Exception(f'Unsupported pair: {dgu_pair}')
 
     def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None) -> object:
         try:
             [base, quote] = self._decode_dgu_pair(dgu_pair)
-            print(f'{base} {quote} {side} {amount} {limit}')
             response = None
             if side.lower() == 'buy':
                 response = self.trading_client.buy_limit_order(amount, limit, base, quote, ioc_order=True)
@@ -88,6 +84,13 @@ class BitstampExchange(Exchange):
             if not response:
                 raise Exception(f'BS no response.  {dgu_pair} {side} {amount} {limit} ')
             pprint.pprint(response)
+            # {'amount': '0.00020000',
+            #  'datetime': '2024-02-29 17:36:45.597000',
+            #  'id': '1721930673926146',
+            #  'market': 'BTC/USD',
+            #  'price': '61799',
+            #  'type': '0'}
+            return response
         except Exception as e:
-            print('BS exception:')
+            print('BS trade exception:')
             pprint.pprint(e)
