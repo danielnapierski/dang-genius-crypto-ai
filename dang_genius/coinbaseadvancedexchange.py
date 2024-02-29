@@ -1,15 +1,12 @@
-import hashlib
-import hmac
-import json
 import pprint
 import time
 from datetime import datetime
 from datetime import timedelta
 
 import coinbasepro as cbp
-from coinbase.rest import RESTClient
-from coinbase import jwt_generator
 import requests
+from coinbase import jwt_generator
+from coinbase.rest import RESTClient
 
 import dang_genius.util as dgu
 from dang_genius.exchange import Exchange
@@ -18,18 +15,13 @@ from dang_genius.exchange import Exchange
 class CoinbaseAdvancedExchange(Exchange):
     def __init__(self, key: str, secret: str):
         super().__init__(key, secret)
-        self.api_url = 'https://coinbase.com'
-        self.order_endpoint = "/api/v3/brokerage/orders"
         self.public_client = cbp.PublicClient()
         self.private_client = RESTClient(key, secret)
         self.BTC_USD_PAIR: str = 'BTC-USD'
         self.ETH_USD_PAIR: str = 'ETH-USD'
         self.ETH_BTC_PAIR: str = 'ETH-BTC'
-        self.BUY_SIDE: str = 'BUY'
-        self.SELL_SIDE: str = 'SELL'
-        self.DIP: float = 0.0012
 
-    #https: // docs.cloud.coinbase.com / advanced - trade - api / docs / rest - api - overview
+    #https://docs.cloud.coinbase.com/advanced-trade-api/docs/sdk-rest-overview
     def _generate_jwt(self):
         request_method = "GET"
         request_path = "/api/v3/brokerage/accounts"
@@ -75,7 +67,6 @@ class CoinbaseAdvancedExchange(Exchange):
                 dgu.ETH_USD_PAIR: self.get_ticker(self.ETH_USD_PAIR),
                 dgu.ETH_BTC_PAIR: self.get_ticker(self.ETH_BTC_PAIR)}
 
-
     def match_pair(self, dgu_pair: str):
         if dgu_pair == dgu.BTC_USD_PAIR:
             return self.BTC_USD_PAIR
@@ -85,76 +76,46 @@ class CoinbaseAdvancedExchange(Exchange):
             return self.ETH_BTC_PAIR
         raise Exception(f'Unsupported pair: {dgu_pair}')
 
-    #    https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
     def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
         try:
+            client_order_id = dgu.generate_order_id(self)
+            product_id = self.match_pair(dgu_pair)
+            base_size = f'{amount:.5f}'
             now = datetime.now(tz=dgu.TZ_UTC)
-            client_order_id = 'CB-order-' + now.strftime(dgu.DATETIME_FORMAT)
             end_time = now + timedelta(milliseconds=2001)
-            ets = end_time.strftime(dgu.DATETIME_FORMAT)
-            timestamp = str(int(time.time()))
-            payload = {
-                "side": side,
-                "client_order_id": client_order_id,
-                "product_id": self.match_pair(dgu_pair),
-                "order_configuration": {
-                    "limit_limit_gtd": {
-                        "base_size": f'{amount:0.5f}',
-                        "limit_price": f'{limit:0.2f}',
-                        "end_time": ets,
-                        "post_only": False
-                    }
-                }
-            }
-            message = timestamp + "POST" + self.order_endpoint + json.dumps(payload)
-            signature = hmac.new(self._secret.encode('utf-8'), message.encode('utf-8'),
-                                 digestmod=hashlib.sha256).digest()
-            headers = {
-                'CB-ACCESS-SIGN': signature.hex(),
-                'CB-ACCESS-TIMESTAMP': timestamp,
-                'CB-ACCESS-KEY': self._key,
-                'User-Agent': 'my-user-agent',
-                'accept': "application/json",
-                'Content-Type': 'application/json'
-            }
+            order_response = self.private_client.limit_order_gtd(
+                client_order_id, product_id, side.upper(), base_size, f'{limit:.5f}', dgu.time_str(end_time))
+            if 'error_response' in order_response.keys():
+                print('CBA trade error: ')
+                pprint.pprint(order_response)
+                return
 
-            new_order = requests.post(self.api_url + self.order_endpoint,
-                                      data=json.dumps(payload), headers=headers).json()
-            if new_order.get('result') == 'error':
-                # TODO: retry??
-                print(f'CBA ERROR: {new_order}')
-            else:
-                if new_order.get('error') == 'unknown':
-                    print(f'CBA UNKNOWN ERROR {new_order}')
-                else:
-                    if (new_order.get('success') and new_order.get('success_response')
-                            and new_order.get('order_configuration')
-                            and new_order.get('order_configuration').get('limit_limit_gtd')):
-                        response = new_order.get('success_response')
-                        print(f'CB SUCCESS: {response}')
-                        order_id = new_order.get('order_id')
-                        product_id = new_order.get('product_id')
-                        side = new_order.get('side')
-                        client_order_id = new_order.get('client_order_id')
-                        # TODO: get actual execution price and amount
-                        config = new_order.get('order_configuration').get('limit_limit_gtd')
-                        print("ORDER:")
-                        print(new_order)
-                        # example: {'success': True, 'failure_reason': 'UNKNOWN_FAILURE_REASON',
-                        # 'order_id': '65dba34e-0796-493c-a422-bda3a928b881',
-                        # 'success_response': {'order_id': '65dba34e-0796-493c-a422-bda3a928b881',
-                        # 'product_id': 'BTC-USD', 'side': 'BUY', 'client_order_id':
-                        # 'CB-order-2024-02-27T15:23:54.162218Z'}, 'order_configuration': {'limit_limit_gtd':
-                        # {'base_size': '0.00010', 'limit_price': '57450.00',
-                        # 'end_time': '2024-02-27T15:23:56.163218Z', 'post_only': False}}}
-                        tx_price = config.get('limit_price')
-                        # TODO: timestampms
-                        # TODO: add KEYS to self
-                        # TODO: ADD PAIR
-                        return {"price": tx_price, "order_id": order_id, "timestamp": timestamp,
-                                "timestampms": timestamp}
-                print(f'CBA ERROR {new_order}')
+            order_id = order_response["order_id"]
+            print(f'ORDER ID: {order_id}')
 
+            for t in [100, 200, 400, 1600]:
+                time.sleep(float(t / 1000.0))
+                fills_response = self.private_client.get_fills(order_id=order_id)
+                fills = fills_response['fills']
+                if fills:
+                    for f in fills:
+                        if order_id == f['order_id']:
+                            pprint.pprint(f)
+                            # {'commission': '0.NNNNN',
+                            #  'entry_id': 'HASH...',
+                            #  'liquidity_indicator': 'TAKER',
+                            #  'order_id': 'HASH...',
+                            #  'price': 'NUM_USD_DOLLARS',
+                            #  'product_id': 'BTC-USD',
+                            #  'sequence_timestamp': '2024-12-29T17:08:21.462918Z',
+                            #  'side': 'BUY',
+                            #  'size': '0.0001',
+                            #  'size_in_quote': False,
+                            #  'trade_id': 'HASH...',
+                            #  'trade_time': '2024-12-29T17:08:21.459857Z',
+                            #  'trade_type': 'FILL',
+                            #  'user_id': 'may_be_same_as_principal_in_api_key_json'}
+                            return f
         except Exception as e:
-            print(f'CBA EXCEPTION: {e}')
-
+            print('CBA trade error: ')
+            pprint.pprint(e)

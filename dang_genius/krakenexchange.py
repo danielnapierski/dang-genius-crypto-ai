@@ -75,7 +75,7 @@ class KrakenExchange(Exchange):
             response = self._kraken_request('/0/private/AddOrder', {
                 "nonce": str(int(1000 * time.time())),
                 "ordertype": "limit",
-                "price": f'{limit:.1f}',
+                "price": f'{limit:.5f}',
                 "type": side.lower(),
                 "volume": amount,
                 "pair": self.match_pair(dgu_pair),
@@ -87,6 +87,9 @@ class KrakenExchange(Exchange):
             if error:
                 print(f'KRAKEN ERROR: {error}')
             else:
-                print(f'KRAKEN SUCCESS: {json_response}')
+                result = json_response.get('result')
+                #{'txid': [''], 'descr' : {'order': 'buy ...'}}
+                txid = result['txid']
+                print(f'KRAKEN SUCCESS: {result}\nTXID:{txid}')
         except Exception as e:
             print(f'KRAKEN Exception: {e}')

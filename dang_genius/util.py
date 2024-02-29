@@ -1,5 +1,8 @@
+from datetime import datetime
 from zoneinfo import ZoneInfo
 from string import ascii_letters, digits
+
+from dang_genius.exchange import Exchange
 
 TZ_UTC: ZoneInfo = ZoneInfo("UTC")
 DB_NAME = "dang_genius_crypto.db"
@@ -19,3 +22,13 @@ DATETIME_FORMAT: str = '%Y-%m-%dT%H:%M:%S.%fZ'
 
 def alphanumeric(s: str) -> str:
     return "".join([ch for ch in s if ch in (ascii_letters + digits)])
+
+
+def generate_order_id(ex: Exchange):
+    now = datetime.now(tz=TZ_UTC)
+    name = alphanumeric(str(type(ex)))
+    return f'{name}ORDER{now.strftime(DATETIME_FORMAT)}'
+
+def time_str(date_time):
+    #2021-05-31T09:59:59Z
+    return date_time.strftime(DATETIME_FORMAT)
