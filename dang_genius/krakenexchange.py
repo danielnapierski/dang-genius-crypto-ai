@@ -19,6 +19,17 @@ class KrakenExchange(Exchange):
         self.BTC_USD_PAIR: str = "XXBTZUSD"
         self.ETH_USD_PAIR: str = "XETHZUSD"
         self.ETH_BTC_PAIR: str = "XETHXXBT"
+        self.SHIB_USD_PAIR: str = "SHIBUSD"
+        self.SAMO_USD_PAIR: str = "SAMOUSD"
+#KRAKEN ERROR: ['EAccount:Invalid permissions:SAMO trading restricted for US:MA.']
+#        The
+#        following
+#        assets
+#        are
+#        restricted
+#        for US clients:  ACA, AGLD, ALICE, ASTR, ATLAS, AUDIO, AVT, BONK, CFG, CSM, C98, GENS, GLMR, HDX, INJ, INTR, JASMY, KIN, LMWR, MC, MV, NMR, NODL, NYM, ORCA, OTP, OXY, PARA, PEPE, PERP, PICA, POL, PSTAKE, PYTH, RAY, REQ, ROOK, SAMO, SDN, STEP, SUI, SXP, TEER, WETH, WIF, WOO, YGG or XRT.
+        self.GALA_USD_PAIR: str = "GALAUSD"
+        self.FTM_USD_PAIR: str = "FTMUSD"
         self.public_client = krakenex.API()
         self.private_client = krakenex.API(self._key, self._secret)
 
@@ -68,6 +79,14 @@ class KrakenExchange(Exchange):
             return self.ETH_USD_PAIR
         if dgu_pair == dgu.ETH_BTC_PAIR:
             return self.ETH_BTC_PAIR
+        if dgu_pair == dgu.SHIB_USD_PAIR:
+            return self.SHIB_USD_PAIR
+        if dgu_pair == dgu.SAMO_USD_PAIR:
+            return self.SAMO_USD_PAIR
+        if dgu_pair == dgu.GALA_USD_PAIR:
+            return self.GALA_USD_PAIR
+        if dgu_pair == dgu.FTM_USD_PAIR:
+            return self.FTM_USD_PAIR
         raise Exception(f'Unsupported pair: {dgu_pair}')
 
     def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None):

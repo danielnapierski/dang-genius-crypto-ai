@@ -7,7 +7,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 import dang_genius.util as dgu
 from dang_genius.bitstampexchange import BitstampExchange
-from dang_genius.coinbaseexchange import CoinbaseExchange
+from dang_genius.coinbaseadvancedexchange import CoinbaseAdvancedExchange
 from dang_genius.geminiexchange import GeminiExchange
 from dang_genius.krakenexchange import KrakenExchange
 
@@ -43,8 +43,8 @@ class Conductor:
             str(BitstampExchange):
                 BitstampExchange(os.environ.get('BS-API-KEY'), os.environ.get('BS-API-SECRET'),
                                  os.environ.get('BS-CLIENT-ID')),
-            str(CoinbaseExchange):
-                CoinbaseExchange(os.environ.get('CB-API-KEY'), os.environ.get('CB-API-SECRET')),
+            str(CoinbaseAdvancedExchange):
+                CoinbaseAdvancedExchange(os.environ.get('CBA-API-KEY'), os.environ.get('CBA-API-SECRET')),
             str(GeminiExchange):
                 GeminiExchange(os.environ.get('GE-API-KEY'), os.environ.get('GE-API-SECRET')),
             str(KrakenExchange):
@@ -63,12 +63,16 @@ class Conductor:
         se.set_limits(min_ask, max_bid)
         Thread(target=se.sell_btc).start()
 
-    def buy_the_dip(self):
-        gemini_ex = self.exchanges.get(str(GeminiExchange))
-        Thread(target=gemini_ex.buy_btc_dip).start()
-
-        coinbase_ex = self.exchanges.get(str(CoinbaseExchange))
-        Thread(target=coinbase_ex.buy_btc_dip).start()
+    def buy_the_dip(self, pair: str):
+#        gemini_ex = self.exchanges.get(str(GeminiExchange))
+#        Thread(target=gemini_ex.buy_btc_dip).start()
+#        coinbase_ex = self.exchanges.get(str(CoinbaseAdvancedExchange))
+#        Thread(target=coinbase_ex.buy_btc_dip).start()
+        # look at market by polling the database
+    # buy wherever I have cash to spend and the price is right
+        # double down, again at any exchange that is available+funded
+        # create a database entry for the next purchase
+        # poll db
 
     def follow_wallet(self):
         Thread(target=self.follow_wallet_thread).start()

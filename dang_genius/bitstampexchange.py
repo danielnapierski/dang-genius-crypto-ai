@@ -71,6 +71,14 @@ class BitstampExchange(Exchange):
             return ['eth', 'usd']
         if dgu_pair == dgu.ETH_BTC_PAIR:
             return ['eth', 'btc']
+        if dgu_pair == dgu.FTM_USD_PAIR:
+            return ['ftm', 'usd']
+        if dgu_pair == dgu.SHIB_USD_PAIR:
+            return ['shib', 'usd']
+        if dgu_pair == dgu.AVAX_USD_PAIR:
+            return ['avax', 'usd']
+        if dgu_pair == dgu.LINK_USD_PAIR:
+            return ['link', 'usd']
         raise Exception(f'Unsupported pair: {dgu_pair}')
 
     def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None) -> object:
@@ -90,7 +98,28 @@ class BitstampExchange(Exchange):
             #  'market': 'BTC/USD',
             #  'price': '61799',
             #  'type': '0'}
-            return response
+            order_id = response['id']
+            status_response = self.trading_client.order_status(order_id)
+            pprint.pprint(status_response)
+            # {'status': 'Finished',
+            #  'transactions': [{'datetime': '2024-02-29 23:09:22',
+            #                    'eth': '0.00500000',
+            #                    'fee': '0.06675000',
+            #                    'price': '3337.60000000',
+            #                    'tid': 322837345,
+            #                    'type': 2,
+            #                    'usd': '16.68800000'}]}
+            if status_response['status'] == 'Finished':
+                transaction = status_response['transactions'][0]
+                # {'btc': '0.00050000',
+                #  'datetime': '2024-02-29 23:21:05',
+                #  'fee': '0.12282000',
+                #  'price': '61410.00000000',
+                #  'tid': 322838502,
+                #  'type': 2,
+                #  'usd': '30.70500000'}
+                return transaction
+            raise Exception(f'Order Failed: {status_response}')
         except Exception as e:
             print('BS trade exception:')
             pprint.pprint(e)

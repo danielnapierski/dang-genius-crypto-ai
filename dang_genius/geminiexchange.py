@@ -20,6 +20,10 @@ class GeminiExchange(Exchange):
         self.BTC_USD_PAIR = "btcusd"
         self.ETH_USD_PAIR = "ethusd"
         self.ETH_BTC_PAIR = "ethbtc"
+        self.SHIB_USD_PAIR = "shibusd"
+        self.SAMO_USD_PAIR = "samousd"
+        self.GALA_USD_PAIR = "galausd"
+        self.FTM_USD_PAIR = 'ftmusd'
         self.BTC_SYMBOL = "BTC"
         self.USD_SYMBOL = "USD"
         self.ETH_SYMBOL = "ETH"
@@ -93,6 +97,14 @@ class GeminiExchange(Exchange):
             return self.ETH_USD_PAIR
         if dgu_pair == dgu.ETH_BTC_PAIR:
             return self.ETH_BTC_PAIR
+        if dgu_pair == dgu.SHIB_USD_PAIR:
+            return self.SHIB_USD_PAIR
+        if dgu_pair == dgu.SAMO_USD_PAIR:
+            return self.SAMO_USD_PAIR
+        if dgu_pair == dgu.GALA_USD_PAIR:
+            return self.GALA_USD_PAIR
+        if dgu_pair == dgu.FTM_USD_PAIR:
+            return self.FTM_USD_PAIR
         raise Exception(f'Unsupported pair: {dgu_pair}')
 
     def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None):

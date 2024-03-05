@@ -1,30 +1,29 @@
 import time
 from dang_genius.market import market_check as mc
 from dang_genius.wallet import check_swap_funding as check_swap_funding
-import dang_genius.util as util
+import dang_genius.util as dgu
 from dang_genius.conductor import Conductor
 
 def bot() -> None:
     conductor = Conductor()
-    max_spread: float = 0.0
-
-#    conductor.buy_the_dip()
-#    conductor.take_the_win()
-
-    time.sleep(5)
     print('Are you ready to rumble?')
     input_text = input()
     print(input_text)
 # TODO: add go/no go
 
+    conductor.buy_the_dip(dgu.BTC_USD_PAIR)
+    conductor.buy_the_dip(dgu.ETH_USD_PAIR)
+    #    conductor.take_the_win()
+
+    max_spread: float = 0.0
     while True:
         opportunity = mc(conductor.fee_estimate)
         if opportunity:
-            buy_ex = opportunity.get(util.BUY_KEY)
-            sell_ex = opportunity.get(util.SELL_KEY)
-            spread = opportunity.get(util.SPREAD_KEY)
-            min_ask = opportunity.get(util.MIN_ASK_KEY)
-            max_bid = opportunity.get(util.MAX_BID_KEY)
+            buy_ex = opportunity.get(dgu.BUY_KEY)
+            sell_ex = opportunity.get(dgu.SELL_KEY)
+            spread = opportunity.get(dgu.SPREAD_KEY)
+            min_ask = opportunity.get(dgu.MIN_ASK_KEY)
+            max_bid = opportunity.get(dgu.MAX_BID_KEY)
 
             if spread and spread > max_spread:
                 max_spread = spread

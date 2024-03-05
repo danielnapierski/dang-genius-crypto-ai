@@ -20,6 +20,9 @@ class CoinbaseAdvancedExchange(Exchange):
         self.BTC_USD_PAIR: str = 'BTC-USD'
         self.ETH_USD_PAIR: str = 'ETH-USD'
         self.ETH_BTC_PAIR: str = 'ETH-BTC'
+        self.SHIB_USD_PAIR: str = 'SHIB-USD'
+        self.GALA_USD_PAIR: str = 'GALA-USD'
+        self.BONK_USD_PAIR: str = 'BONK-USD'
 
     #https://docs.cloud.coinbase.com/advanced-trade-api/docs/sdk-rest-overview
     def _generate_jwt(self):
@@ -74,6 +77,12 @@ class CoinbaseAdvancedExchange(Exchange):
             return self.ETH_USD_PAIR
         if dgu_pair == dgu.ETH_BTC_PAIR:
             return self.ETH_BTC_PAIR
+        if dgu_pair == dgu.SHIB_USD_PAIR:
+            return self.SHIB_USD_PAIR
+        if dgu_pair == dgu.BONK_USD_PAIR:
+            return self.BONK_USD_PAIR
+        if dgu_pair == dgu.GALA_USD_PAIR:
+            raise Exception(f'Disabled by exchange as of March 2024.')
         raise Exception(f'Unsupported pair: {dgu_pair}')
 
     def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
