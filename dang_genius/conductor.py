@@ -68,6 +68,7 @@ class Conductor:
 
         self.follow_market()
         self.follow_wallet()
+        time.sleep(60)
         self.find_opportunities()
         self.grind()
         self.execute_trades()
@@ -321,7 +322,7 @@ class Conductor:
                 # return {dgu.MSG_KEY: f'spread {spread:.5f} is less than fees {fee:.5f}', dgu.SPREAD_KEY: spread}
                 connection.commit()
                 cursor.close()
-                time.sleep(0.2)
+                time.sleep(0.3)
             except sqlite3.Error as sql_error:
                 print(f'MC SQL error: {sql_error}')
             except TypeError as type_error:

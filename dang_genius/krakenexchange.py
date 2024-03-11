@@ -74,6 +74,7 @@ class KrakenExchange(Exchange):
     @property
     def tickers(self) -> dict[str, dict | None]:
         try:
+            time.sleep(0.05)
             return {dgu.BTC_USD_PAIR: self.get_ticker(self.BTC_USD_PAIR),
                     dgu.ETH_USD_PAIR: self.get_ticker(self.ETH_USD_PAIR),
                     dgu.ETH_BTC_PAIR: self.get_ticker(self.ETH_BTC_PAIR),
@@ -119,6 +120,7 @@ class KrakenExchange(Exchange):
 
     def is_trade_closed(self, txid: str):
         print(f'Kraken TXID {txid}')
+        time.sleep(0.01)
         response = self._kraken_request('/0/private/ClosedOrders', {
             "nonce": str(int(1000 * time.time()))
         }, self._key, self._secret).json()
