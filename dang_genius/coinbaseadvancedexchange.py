@@ -23,8 +23,15 @@ class CoinbaseAdvancedExchange(Exchange):
         self.SHIB_USD_PAIR: str = 'SHIB-USD'
         self.GALA_USD_PAIR: str = 'GALA-USD'
         self.BONK_USD_PAIR: str = 'BONK-USD'
+        self.FET_USD_PAIR: str = 'FET-USD'
+        self.supported_pairs = {dgu.BTC_USD_PAIR: self.BTC_USD_PAIR,
+                                dgu.ETH_USD_PAIR: self.ETH_USD_PAIR,
+                                dgu.ETH_BTC_PAIR: self.ETH_BTC_PAIR,
+                                dgu.SHIB_USD_PAIR: self.SHIB_USD_PAIR,
+                                dgu.BONK_USD_PAIR: self.BONK_USD_PAIR,
+                                dgu.FET_USD_PAIR: self.FET_USD_PAIR}
 
-    #https://docs.cloud.coinbase.com/advanced-trade-api/docs/sdk-rest-overview
+        #https://docs.cloud.coinbase.com/advanced-trade-api/docs/sdk-rest-overview
     def _generate_jwt(self):
         request_method = "GET"
         request_path = "/api/v3/brokerage/accounts"
@@ -39,12 +46,15 @@ class CoinbaseAdvancedExchange(Exchange):
             balances = {}
             for account in response['accounts']:
                 currency = account['currency']
-                if currency in ['USD', 'BTC', 'ETH']:
+                if currency in ['USD', 'BTC', 'ETH', 'SHIB']:
                     val = float(account["available_balance"]["value"])
                     if currency == 'USD':
                         balances[currency] = float(f'{val:.2f}')
                     else:
-                        balances[currency] = float(f'{val:.5f}')
+                        if currency == 'SHIB':
+                            balances[currency] = float(f'{val:.0f}')
+                        else:
+                            balances[currency] = float(f'{val:.5f}')
             return balances
         except Exception as e:
             print('CBA balances error: ')
@@ -68,21 +78,12 @@ class CoinbaseAdvancedExchange(Exchange):
     def tickers(self) -> dict[str, dict | None]:
         return {dgu.BTC_USD_PAIR: self.get_ticker(self.BTC_USD_PAIR),
                 dgu.ETH_USD_PAIR: self.get_ticker(self.ETH_USD_PAIR),
-                dgu.ETH_BTC_PAIR: self.get_ticker(self.ETH_BTC_PAIR)}
+                dgu.ETH_BTC_PAIR: self.get_ticker(self.ETH_BTC_PAIR),
+                dgu.SHIB_USD_PAIR: self.get_ticker(self.SHIB_USD_PAIR)}
 
     def match_pair(self, dgu_pair: str):
-        if dgu_pair == dgu.BTC_USD_PAIR:
-            return self.BTC_USD_PAIR
-        if dgu_pair == dgu.ETH_USD_PAIR:
-            return self.ETH_USD_PAIR
-        if dgu_pair == dgu.ETH_BTC_PAIR:
-            return self.ETH_BTC_PAIR
-        if dgu_pair == dgu.SHIB_USD_PAIR:
-            return self.SHIB_USD_PAIR
-        if dgu_pair == dgu.BONK_USD_PAIR:
-            return self.BONK_USD_PAIR
-        if dgu_pair == dgu.GALA_USD_PAIR:
-            raise Exception(f'Disabled by exchange as of March 2024.')
+        if dgu_pair in self.supported_pairs.keys():
+            return self.supported_pairs[dgu_pair]
         raise Exception(f'Unsupported pair: {dgu_pair}')
 
     def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
@@ -91,7 +92,7 @@ class CoinbaseAdvancedExchange(Exchange):
             product_id = self.match_pair(dgu_pair)
             base_size = f'{amount:.5f}'
             now = datetime.now(tz=dgu.TZ_UTC)
-            end_time = now + timedelta(milliseconds=2001)
+            end_time = now + timedelta(milliseconds=3001)
             order_response = self.private_client.limit_order_gtd(
                 client_order_id, product_id, side.upper(), base_size, f'{limit:.5f}', dgu.time_str(end_time))
             if 'error_response' in order_response.keys():
@@ -102,7 +103,7 @@ class CoinbaseAdvancedExchange(Exchange):
             order_id = order_response["order_id"]
             print(f'ORDER ID: {order_id}')
 
-            for t in [100, 200, 400, 1600]:
+            for t in [100, 200, 400, 2600]:
                 time.sleep(float(t / 1000.0))
                 fills_response = self.private_client.get_fills(order_id=order_id)
                 fills = fills_response['fills']

@@ -24,8 +24,10 @@ for ex in [be, cae, ge, ke]:
 btcs = []
 eths = []
 usds = []
+shibs = []
 btc_bids = []
 eth_bids = []
+shib_bids = []
 
 for ex in [be, cae, ge, ke]:
     print(f'{type(ex)}')
@@ -36,21 +38,24 @@ for ex in [be, cae, ge, ke]:
     start = time.time()
     ext = ex.tickers
     end = time.time()
-    pprint.pprint(exb)
-    pprint.pprint(ext)
+    print(exb)
+    print(ext)
     print(f'[{(end - start): .2f} seconds]')
     btcs.append(exb['BTC'])
     eths.append(exb['ETH'])
     usds.append(exb['USD'])
+    shibs.append(exb['SHIB'])
     btc_bids.append(ext['BTC_USD']['BID'])
     eth_bids.append(ext['ETH_USD']['BID'])
-
+    shib_bids.append(ext['SHIB_USD']['BID'])
 
 btc_tally = sum(btcs)
 eth_tally = sum(eths)
 usd_tally = sum(usds)
+shib_tally = sum(shibs)
 min_btc_bid = min(btc_bids)
 min_eth_bid = min(eth_bids)
-total = (min_btc_bid * btc_tally) + (min_eth_bid * eth_tally) + usd_tally
-print(f'\nTotal BTC: {btc_tally: .5f}\tTotal ETH: {eth_tally: .5f}\tTotal USD: {usd_tally: .2f}')
+min_shib_bid = min(shib_bids)
+total = (min_btc_bid * btc_tally) + (min_eth_bid * eth_tally) + (min_shib_bid * shib_tally) + usd_tally
+print(f'\nBTC: {btc_tally: .5f}\tETH: {eth_tally: .5f}\tSHIB: {shib_tally: .0f}\t   USD: {usd_tally: .2f}')
 print(f'\t\t\t\tEstimated Portfolio Value: ${total: .2f}')
