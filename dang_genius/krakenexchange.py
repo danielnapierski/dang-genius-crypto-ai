@@ -21,6 +21,13 @@ class KrakenExchange(Exchange):
         self.ETH_BTC_PAIR: str = "XETHXXBT"
         self.SHIB_USD_PAIR: str = "SHIBUSD"
         self.SAMO_USD_PAIR: str = "SAMOUSD"
+        self.FET_USD_PAIR: str = "FETUSD"
+        self.supported_pairs = {dgu.BTC_USD_PAIR: self.BTC_USD_PAIR,
+                                dgu.ETH_USD_PAIR: self.ETH_USD_PAIR,
+                                dgu.ETH_BTC_PAIR: self.ETH_BTC_PAIR,
+                                dgu.SAMO_USD_PAIR: self.SAMO_USD_PAIR,
+                                dgu.SHIB_USD_PAIR: self.SHIB_USD_PAIR,
+                                dgu.FET_USD_PAIR: self.FET_USD_PAIR}
 #KRAKEN ERROR: ['EAccount:Invalid permissions:SAMO trading restricted for US:MA.']
 #        The
 #        following
@@ -39,7 +46,9 @@ class KrakenExchange(Exchange):
         xxbt = float(b.get('XXBT'))
         zusd = float(b.get('ZUSD'))
         xeth = float(b.get('XETH'))
-        return {'BTC': float(f'{xxbt: .5f}'), 'USD': float(f'{zusd: .2f}'), 'ETH': float(f'{xeth: .5f}')}
+        shib = float(b.get('SHIB'))
+        return {'BTC': float(f'{xxbt: .5f}'), 'USD': float(f'{zusd: .2f}'),
+                'ETH': float(f'{xeth: .5f}'), 'SHIB': (float(f'{shib: .0f}'))}
 
     @staticmethod
     def _get_kraken_signature(urlpath, data, secret):
@@ -67,34 +76,26 @@ class KrakenExchange(Exchange):
         try:
             return {dgu.BTC_USD_PAIR: self.get_ticker(self.BTC_USD_PAIR),
                     dgu.ETH_USD_PAIR: self.get_ticker(self.ETH_USD_PAIR),
-                    dgu.ETH_BTC_PAIR: self.get_ticker(self.ETH_BTC_PAIR)}
+                    dgu.ETH_BTC_PAIR: self.get_ticker(self.ETH_BTC_PAIR),
+                    dgu.SHIB_USD_PAIR: self.get_ticker(self.SHIB_USD_PAIR)}
         except Exception as e:
             print(f'Gemini tickers exception: {e}')
             return {}
 
     def match_pair(self, dgu_pair: str):
-        if dgu_pair == dgu.BTC_USD_PAIR:
-            return self.BTC_USD_PAIR
-        if dgu_pair == dgu.ETH_USD_PAIR:
-            return self.ETH_USD_PAIR
-        if dgu_pair == dgu.ETH_BTC_PAIR:
-            return self.ETH_BTC_PAIR
-        if dgu_pair == dgu.SHIB_USD_PAIR:
-            return self.SHIB_USD_PAIR
-        if dgu_pair == dgu.SAMO_USD_PAIR:
-            return self.SAMO_USD_PAIR
-        if dgu_pair == dgu.GALA_USD_PAIR:
-            return self.GALA_USD_PAIR
-        if dgu_pair == dgu.FTM_USD_PAIR:
-            return self.FTM_USD_PAIR
+        if dgu_pair in self.supported_pairs.keys():
+            return self.supported_pairs[dgu_pair]
         raise Exception(f'Unsupported pair: {dgu_pair}')
 
     def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
         try:
+            price = f'{limit:.5f}'
+            if dgu.BTC_USD_PAIR == dgu_pair:
+                price = f'{limit:.1f}'
             response = self._kraken_request('/0/private/AddOrder', {
                 "nonce": str(int(1000 * time.time())),
                 "ordertype": "limit",
-                "price": f'{limit:.5f}',
+                "price": price,
                 "type": side.lower(),
                 "volume": amount,
                 "pair": self.match_pair(dgu_pair),
@@ -108,7 +109,21 @@ class KrakenExchange(Exchange):
             else:
                 result = json_response.get('result')
                 #{'txid': [''], 'descr' : {'order': 'buy ...'}}
-                txid = result['txid']
-                print(f'KRAKEN SUCCESS: {result}\nTXID:{txid}')
+                txid = result['txid'][0]
+                if self.is_trade_closed(txid):
+                    return result
         except Exception as e:
             print(f'KRAKEN Exception: {e}')
+
+
+
+    def is_trade_closed(self, txid: str):
+        print(f'Kraken TXID {txid}')
+        response = self._kraken_request('/0/private/ClosedOrders', {
+            "nonce": str(int(1000 * time.time()))
+        }, self._key, self._secret).json()
+        closed = response['result']['closed']
+        tx = closed[txid]
+        status = tx['status']
+# status could be 'closed' 'canceled' or something else possibly
+        return 'closed' == status

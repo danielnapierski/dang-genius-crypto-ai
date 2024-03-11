@@ -10,7 +10,7 @@ def bot() -> None:
     input_text = input()
     print(input_text)
 # TODO: add go/no go
-
+    exit()
     conductor.buy_the_dip(dgu.BTC_USD_PAIR)
     conductor.buy_the_dip(dgu.ETH_USD_PAIR)
     #    conductor.take_the_win()

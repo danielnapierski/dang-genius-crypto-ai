@@ -24,9 +24,15 @@ class GeminiExchange(Exchange):
         self.SAMO_USD_PAIR = "samousd"
         self.GALA_USD_PAIR = "galausd"
         self.FTM_USD_PAIR = 'ftmusd'
-        self.BTC_SYMBOL = "BTC"
-        self.USD_SYMBOL = "USD"
-        self.ETH_SYMBOL = "ETH"
+        self.FET_USD_PAIR = 'fetusd'
+        self.supported_pairs = {dgu.BTC_USD_PAIR: self.BTC_USD_PAIR,
+                                dgu.ETH_USD_PAIR: self.ETH_USD_PAIR,
+                                dgu.ETH_BTC_PAIR: self.ETH_BTC_PAIR,
+                                dgu.SAMO_USD_PAIR: self.SAMO_USD_PAIR,
+                                dgu.SHIB_USD_PAIR: self.SHIB_USD_PAIR,
+                                dgu.GALA_USD_PAIR: self.GALA_USD_PAIR,
+                                dgu.FTM_USD_PAIR: self.FTM_USD_PAIR,
+                                dgu.FET_USD_PAIR: self.FET_USD_PAIR}
         self.BUY_SIDE = "buy"
         self.SELL_SIDE = "sell"
         self.public_api = Public()
@@ -57,18 +63,22 @@ class GeminiExchange(Exchange):
             btc = 0.0
             usd = 0.0
             eth = 0.0
+            shib = 0.0
             for d in data:
-                currency = d.get('currency')
-                if currency == self.BTC_SYMBOL:
+                currency = str(d.get('currency')).upper()
+                if currency == 'BTC':
                     ba = float(d.get('available'))
                     btc = float(f'{ba: .5f}')
-                if currency == self.USD_SYMBOL:
+                if currency == 'USD':
                     ua = float(d.get('available'))
                     usd = float(f'{ua: .2f}')
-                if currency == self.ETH_SYMBOL:
+                if currency == 'ETH':
                     ea = float(d.get('available'))
                     eth = float(f'{ea: .5f}')
-            return {'BTC': btc, 'USD': usd, 'ETH': eth}
+                if currency == 'SHIB':
+                    sa = float(d.get('available'))
+                    shib = float(f'{sa: .0f}')
+            return {'BTC': btc, 'USD': usd, 'ETH': eth, 'SHIB': shib}
         except Exception as e:
             print(f'Gemini balances exception: {e}')
             return {}
@@ -85,26 +95,15 @@ class GeminiExchange(Exchange):
         try:
             return {dgu.BTC_USD_PAIR: self.get_ticker(self.BTC_USD_PAIR),
                     dgu.ETH_USD_PAIR: self.get_ticker(self.ETH_USD_PAIR),
-                    dgu.ETH_BTC_PAIR: self.get_ticker(self.ETH_BTC_PAIR)}
+                    dgu.ETH_BTC_PAIR: self.get_ticker(self.ETH_BTC_PAIR),
+                    dgu.SHIB_USD_PAIR: self.get_ticker(self.SHIB_USD_PAIR)}
         except Exception as e:
             print(f'Gemini tickers exception: {e}')
             return {}
 
     def match_pair(self, dgu_pair: str):
-        if dgu_pair == dgu.BTC_USD_PAIR:
-            return self.BTC_USD_PAIR
-        if dgu_pair == dgu.ETH_USD_PAIR:
-            return self.ETH_USD_PAIR
-        if dgu_pair == dgu.ETH_BTC_PAIR:
-            return self.ETH_BTC_PAIR
-        if dgu_pair == dgu.SHIB_USD_PAIR:
-            return self.SHIB_USD_PAIR
-        if dgu_pair == dgu.SAMO_USD_PAIR:
-            return self.SAMO_USD_PAIR
-        if dgu_pair == dgu.GALA_USD_PAIR:
-            return self.GALA_USD_PAIR
-        if dgu_pair == dgu.FTM_USD_PAIR:
-            return self.FTM_USD_PAIR
+        if dgu_pair in self.supported_pairs.keys():
+            return self.supported_pairs[dgu_pair]
         raise Exception(f'Unsupported pair: {dgu_pair}')
 
     def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
@@ -142,7 +141,7 @@ class GeminiExchange(Exchange):
                     # TODO: Add PAIR
                     return {"price": tx_price, "order_id": order_id, "timestamp": timestamp, "timestampms": timestampms}
                 else:
-                    print(f'GEMINI FAIL: {new_order}')
+                    print(f'GEMINI FAIL or partial fill: {new_order}')
                     # success can be a cancelled order
         except Exception as e:
             print(f'GEMINI trade exception: {e}')

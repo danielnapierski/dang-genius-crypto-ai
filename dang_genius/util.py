@@ -24,7 +24,9 @@ FTM_USD_PAIR: str = 'FTM_USD'
 BONK_USD_PAIR: str = 'BONK_USD'
 AVAX_USD_PAIR: str = 'AVAX_USD'
 LINK_USD_PAIR: str = 'LINK_USD'
+FET_USD_PAIR: str = 'FET_USD'
 DATETIME_FORMAT: str = '%Y-%m-%dT%H:%M:%S.%fZ'
+TO_THE_MINUTE_FORMAT: str = '%Y-%m-%dT%H:%MZ'
 
 
 def alphanumeric(s: str) -> str:
@@ -36,6 +38,20 @@ def generate_order_id(ex: Exchange):
     name = alphanumeric(str(type(ex)))
     return f'{name}ORDER{now.strftime(DATETIME_FORMAT)}'
 
+
 def time_str(date_time):
-    #2021-05-31T09:59:59Z
+    # 2021-05-31T09:59:59.999999Z
     return date_time.strftime(DATETIME_FORMAT)
+
+
+def time_str_to_the_minute(date_time):
+    # 2021-05-31T09:59Z
+    return date_time.strftime(TO_THE_MINUTE_FORMAT)
+
+
+# possible parsing suggestion for minute time: 2024-03-05T18:11Z
+# dt = datetime.datetime.strptime(dt_str, "%Y-%m-%dT%H:%MZ")
+
+def get_datetime(text: str) -> datetime:
+    timestamp = datetime.strptime(text, DATETIME_FORMAT)
+    return timestamp
