@@ -101,7 +101,7 @@ class CoinbaseAdvancedExchange(Exchange):
                 return
 
             order_id = order_response["order_id"]
-            print(f'ORDER ID: {order_id}')
+#            print(f'ORDER ID: {order_id}')
 
             for t in [100, 200, 400, 2600]:
                 time.sleep(float(t / 1000.0))
@@ -110,7 +110,7 @@ class CoinbaseAdvancedExchange(Exchange):
                 if fills:
                     for f in fills:
                         if order_id == f['order_id']:
-                            pprint.pprint(f)
+#                            pprint.pprint(f)
                             # {'commission': '0.NNNNN',
                             #  'entry_id': 'HASH...',
                             #  'liquidity_indicator': 'TAKER',

@@ -48,10 +48,12 @@ class Conductor:
             (id INTEGER PRIMARY KEY AUTOINCREMENT, pair TEXT, minute_stamp TEXT, pennies INTEGER, delta INTEGER)""")
         cursor.execute(
             """CREATE TABLE IF NOT EXISTS intent
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, pair TEXT, side TEXT, exchange TEXT, amount FLOAT,
-            date_expires TEXT, limit_pennies INTEGER, order_id TEXT, completed BIT, failed BIT, in_progress BIT)""")
-        cursor.execute("""UPDATE intent SET in_progress=1""")
+            (id INTEGER PRIMARY KEY AUTOINCREMENT, pair TEXT, side TEXT, exchange TEXT, order_desc TEXT, 
+            date_expires TEXT, amount FLOAT, limit_pennies INTEGER, 
+            completed BIT, failed BIT, in_progress BIT, check_price BIT, keep BIT)""")
 
+        # Anything already in DB during conductor init marked as in_progress
+        cursor.execute("""UPDATE intent SET in_progress=1""")
         connection.commit()
         cursor.close()
 
@@ -68,7 +70,7 @@ class Conductor:
 
         self.follow_market()
         self.follow_wallet()
-        time.sleep(60)
+        time.sleep(3)
         self.find_opportunities()
         self.grind()
         self.execute_trades()
@@ -140,7 +142,7 @@ class Conductor:
                     if connection:
                         connection.close()
 
-            time.sleep(15)
+            time.sleep(10)
 
 
     def follow_market(self):
@@ -466,6 +468,7 @@ class Conductor:
             try:
                 connection = sqlite3.connect(dgu.DB_NAME)
                 cursor = connection.cursor()
+                #TODO: FIX ALL INTENTS!
                 select_intent_query = f"""SELECT id FROM intent 
                                             WHERE (completed IS NULL OR NOT completed) 
                                             AND (failed IS NULL OR NOT failed)
@@ -497,6 +500,14 @@ class Conductor:
                 return
             except Exception as e:
                 print(f'Grind exception: {e}')
+
+
+    def win(self):
+        # look for basis in db
+        # compare basis + profit to current prices offered
+        # make sale if profitable
+        pass
+
 
 
     # work in pennies to avoid floats

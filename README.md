@@ -18,9 +18,10 @@ Use `brew` to install and upgrade conda:
 % brew upgrade miniconda
 ```
 
-### Optional Tools:
+### Additional Tools:
 
 ```
+% brew install rust
 % brew install nano
 % brew install git
 % brew install tree

@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import json
+import threading
 import time
 import urllib.parse
 
@@ -11,38 +12,33 @@ import dang_genius.util as dgu
 from dang_genius.exchange import Exchange
 
 
+# See:
+# # Note ['EAccount:Invalid permissions:SAMO trading restricted for US:MA.']
+# # The following assets are restricted for US clients:
+# # ACA, AGLD, ALICE, ASTR, ATLAS, AUDIO, AVT, BONK, CFG, CSM, C98, GENS, GLMR, HDX, INJ, INTR, JASMY, KIN, LMWR, MC,
+# # MV, NMR, NODL, NYM, ORCA, OTP, OXY, PARA, PEPE, PERP, PICA, POL, PSTAKE, PYTH, RAY, REQ, ROOK, SAMO, SDN, STEP, SUI,
+# # SXP, TEER, WETH, WIF, WOO, YGG or XRT.
 class KrakenExchange(Exchange):
 
     def __init__(self, key: str, secret: str):
         super().__init__(key, secret)
         self.api_url = "https://api.kraken.com"
-        self.BTC_USD_PAIR: str = "XXBTZUSD"
-        self.ETH_USD_PAIR: str = "XETHZUSD"
-        self.ETH_BTC_PAIR: str = "XETHXXBT"
-        self.SHIB_USD_PAIR: str = "SHIBUSD"
-        self.SAMO_USD_PAIR: str = "SAMOUSD"
-        self.FET_USD_PAIR: str = "FETUSD"
-        self.supported_pairs = {dgu.BTC_USD_PAIR: self.BTC_USD_PAIR,
-                                dgu.ETH_USD_PAIR: self.ETH_USD_PAIR,
-                                dgu.ETH_BTC_PAIR: self.ETH_BTC_PAIR,
-                                dgu.SAMO_USD_PAIR: self.SAMO_USD_PAIR,
-                                dgu.SHIB_USD_PAIR: self.SHIB_USD_PAIR,
-                                dgu.FET_USD_PAIR: self.FET_USD_PAIR}
-#KRAKEN ERROR: ['EAccount:Invalid permissions:SAMO trading restricted for US:MA.']
-#        The
-#        following
-#        assets
-#        are
-#        restricted
-#        for US clients:  ACA, AGLD, ALICE, ASTR, ATLAS, AUDIO, AVT, BONK, CFG, CSM, C98, GENS, GLMR, HDX, INJ, INTR, JASMY, KIN, LMWR, MC, MV, NMR, NODL, NYM, ORCA, OTP, OXY, PARA, PEPE, PERP, PICA, POL, PSTAKE, PYTH, RAY, REQ, ROOK, SAMO, SDN, STEP, SUI, SXP, TEER, WETH, WIF, WOO, YGG or XRT.
-        self.GALA_USD_PAIR: str = "GALAUSD"
-        self.FTM_USD_PAIR: str = "FTMUSD"
+        self.supported_pairs = {dgu.BTC_USD_PAIR: "XXBTZUSD",
+                                dgu.ETH_USD_PAIR: "XETHZUSD",
+                                dgu.ETH_BTC_PAIR: "XETHXXBT",
+                                dgu.SHIB_USD_PAIR: "SHIBUSD",
+                                dgu.FET_USD_PAIR: "FETUSD",
+                                dgu.GALA_USD_PAIR: "GALAUSD",
+                                dgu.FTM_USD_PAIR: "FTMUSD"}
         self.public_client = krakenex.API()
         self.private_client = krakenex.API(self._key, self._secret)
+        self._lock = threading.Lock()
+
 
     @property
     def balances(self) -> dict:
-        b = self.private_client.query_private('Balance')['result']
+        with self._lock:
+            b = self.private_client.query_private('Balance')['result']
         xxbt = float(b.get('XXBT'))
         zusd = float(b.get('ZUSD'))
         xeth = float(b.get('XETH'))
@@ -60,27 +56,28 @@ class KrakenExchange(Exchange):
         return sigdigest.decode()
 
     def _kraken_request(self, uri_path, data, api_key, api_sec):
-        headers = {'API-Key': api_key, 'API-Sign': self._get_kraken_signature(uri_path, data, api_sec)}
-        return requests.post((self.api_url + uri_path), headers=headers, data=data)
+        with self._lock:
+            headers = {'API-Key': api_key, 'API-Sign': self._get_kraken_signature(uri_path, data, api_sec)}
+            return requests.post((self.api_url + uri_path), headers=headers, data=data)
 
     def get_btc_ticker(self):
         return self.get_ticker(self.BTC_USD_PAIR)
 
     def get_ticker(self, pair: str):
-        tic = self.public_client.query_public('Depth',
-                                               {'pair': pair, 'count': '10'}).get('result').get(pair)
-        return {dgu.ASK_KEY: (float(tic.get('asks')[0][0])), dgu.BID_KEY: (float(tic.get('bids')[0][0]))}
+        with self._lock:
+            tic = self.public_client.query_public('Depth',
+                                                   {'pair': pair, 'count': '10'}).get('result').get(pair)
+            return {dgu.ASK_KEY: (float(tic.get('asks')[0][0])), dgu.BID_KEY: (float(tic.get('bids')[0][0]))}
 
     @property
     def tickers(self) -> dict[str, dict | None]:
         try:
-            time.sleep(0.05)
-            return {dgu.BTC_USD_PAIR: self.get_ticker(self.BTC_USD_PAIR),
-                    dgu.ETH_USD_PAIR: self.get_ticker(self.ETH_USD_PAIR),
-                    dgu.ETH_BTC_PAIR: self.get_ticker(self.ETH_BTC_PAIR),
-                    dgu.SHIB_USD_PAIR: self.get_ticker(self.SHIB_USD_PAIR)}
+            return {dgu.BTC_USD_PAIR: self.get_ticker(self.supported_pairs[dgu.BTC_USD_PAIR]),
+                    dgu.ETH_USD_PAIR: self.get_ticker(self.supported_pairs[dgu.ETH_USD_PAIR]),
+                    dgu.ETH_BTC_PAIR: self.get_ticker(self.supported_pairs[dgu.ETH_BTC_PAIR]),
+                    dgu.SHIB_USD_PAIR: self.get_ticker(self.supported_pairs[dgu.SHIB_USD_PAIR])}
         except Exception as e:
-            print(f'Gemini tickers exception: {e}')
+            print(f'KRAKEN tickers exception: {e}')
             return {}
 
     def match_pair(self, dgu_pair: str):
@@ -90,9 +87,7 @@ class KrakenExchange(Exchange):
 
     def trade(self, dgu_pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
         try:
-            price = f'{limit:.5f}'
-            if dgu.BTC_USD_PAIR == dgu_pair:
-                price = f'{limit:.1f}'
+            price = f'{limit:.1f}' if dgu.BTC_USD_PAIR == dgu_pair else f'{limit:.5f}'
             response = self._kraken_request('/0/private/AddOrder', {
                 "nonce": str(int(1000 * time.time())),
                 "ordertype": "limit",
@@ -106,26 +101,22 @@ class KrakenExchange(Exchange):
             json_response = json.loads(getattr(response, 'text'))
             error = json_response.get('error')
             if error:
-                print(f'KRAKEN ERROR: {error}')
-            else:
-                result = json_response.get('result')
-                #{'txid': [''], 'descr' : {'order': 'buy ...'}}
-                txid = result['txid'][0]
-                if self.is_trade_closed(txid):
-                    return result
+                raise Exception(f'KRAKEN AddOrder error response: {error}\n{dgu_pair}|{price}|{amount}|{side}')
+            result = json_response.get('result')
+            #{'txid': [''], 'descr' : {'order': 'buy ...'}}
+            txid = result['txid'][0]
+            if self._is_trade_closed(txid):
+                return result
+            print('KRAKEN tx failed.')
+
         except Exception as e:
             print(f'KRAKEN Exception: {e}')
 
 
 
-    def is_trade_closed(self, txid: str):
-        print(f'Kraken TXID {txid}')
-        time.sleep(0.01)
+    def _is_trade_closed(self, txid: str):
         response = self._kraken_request('/0/private/ClosedOrders', {
             "nonce": str(int(1000 * time.time()))
         }, self._key, self._secret).json()
-        closed = response['result']['closed']
-        tx = closed[txid]
-        status = tx['status']
-# status could be 'closed' 'canceled' or something else possibly
-        return 'closed' == status
+        # status could be 'closed' 'canceled' or something else possibly
+        return 'closed' == response['result']['closed'][txid]['status']
