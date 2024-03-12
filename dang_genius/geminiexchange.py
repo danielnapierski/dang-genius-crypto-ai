@@ -133,13 +133,15 @@ class GeminiExchange(Exchange):
                 print(f'GEMINI ERROR: {new_order}')
             else:
                 if new_order.get('remaining_amount') == '0':
-                    print(f'GEMINI SUCCESS: {new_order}')
                     tx_price = new_order.get('avg_execution_price')
                     order_id = new_order.get('order_id')
                     timestamp = new_order.get('timestamp')
                     timestampms = new_order.get('timestampms')
-                    # TODO: Add PAIR
-                    return {"price": tx_price, "order_id": order_id, "timestamp": timestamp, "timestampms": timestampms}
+                    symbol = new_order.get('symbol')
+                    side = new_order.get('side')
+                    amount = new_order.get('executed_amount')
+                    return {"price": tx_price, "order_id": order_id, "timestamp": timestamp, "timestampms": timestampms,
+                            "symbol": symbol, "side": side, "amount": amount}
                 else:
                     print(f'GEMINI FAIL or partial fill: {new_order}')
                     # success can be a cancelled order

@@ -18,14 +18,14 @@ cbe = CoinbaseAdvancedExchange(os.environ.get('CBA-API-KEY'), os.environ.get('CB
 ge = GeminiExchange(os.environ.get('GE-API-KEY'), os.environ.get('GE-API-SECRET'))
 ke = KrakenExchange(os.environ.get('KR-API-KEY'), os.environ.get('KR-API-SECRET'))
 
-for ex in [be, cbe, ge, ke]:
+for ex in [ke]:
     try:
         print(f'\nExchange: {dgu.alphanumeric(str(type(ex)))}')
-        t = ex.trade(dgu.BTC_USD_PAIR, 'BUY', 0.001, 68096)
-        t2 = ex.trade(dgu.ETH_USD_PAIR, 'BUY', 0.01, 3800.0)
+        t = ex.trade(dgu.BTC_USD_PAIR, 'BUY', 0.001, 72088.9)
+#        t2 = ex.trade(dgu.ETH_USD_PAIR, 'SELL', 0.02, 4038.0)
         print('Trade-check trade: ')
         pprint.pprint(t)
-        pprint.pprint(t2)
+#        pprint.pprint(t2)
     except Exception as e:
         print('Trade-check exception: ')
         pprint.pprint(e)

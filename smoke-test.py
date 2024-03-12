@@ -1,16 +1,14 @@
-from requests.exceptions import HTTPError
+import pprint
 
 import krakenex
 
-import pprint
+from requests.exceptions import HTTPError
 
 kraken = krakenex.API()
 
 try:
-
-    # Get a list of the most recent trades
-    # {'error': [],
-    # 'result': {'XXBTZUSD': [['26202.00000',
+    # Get a list of the most recent BTC Trades, then Assets, and AssetPairs
+    # {'error': [], 'result': {'XXBTZUSD': [['26202.00000', ...}
 
     recentTrades = kraken.query_public('Trades',{'pair': 'XXBTZUSD'})
     dir(recentTrades)
@@ -30,3 +28,4 @@ try:
 
 except HTTPError as e:
     print(str(e))
+
