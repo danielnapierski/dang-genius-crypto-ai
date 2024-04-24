@@ -21,9 +21,8 @@ Use `brew` to install and upgrade conda:
 ### Additional Tools:
 
 ```
-% brew install rust
-% brew install nano
 % brew install git
+% brew install nano
 % brew install tree
 ```
 
@@ -33,19 +32,16 @@ Use `brew` to install and upgrade conda:
 
 ```
 # To create an environment, use
-#
-#     $ conda env create --name dg-3.12 --file environment.yml 
-#
+conda env create --file environment.yml 
+
 # To activate this environment, use
-#
-#     $ conda activate dg-3.12
-#
+conda activate dg-3.12
+
 # To deactivate an active environment, use
-#
-#     $ conda deactivate
-# To delete an environment, use
-#
-#     $ conda env remove -n dg-3.12
+conda deactivate
+
+# To delete an environment first deactivate and then, use
+conda env remove -y -n dg-3.12
 ```
 
 ### git with ssh

@@ -1,6 +1,6 @@
+#!python3
 import os
 import pprint
-import time
 
 from dotenv import load_dotenv
 
@@ -10,24 +10,34 @@ from dang_genius.coinbaseadvancedexchange import CoinbaseAdvancedExchange
 from dang_genius.geminiexchange import GeminiExchange
 from dang_genius.krakenexchange import KrakenExchange
 
-print('Loading...')
+print("Loading...")
 
 load_dotenv()
-be = BitstampExchange(os.environ.get('BS-API-KEY'), os.environ.get('BS-API-SECRET'), os.environ.get('BS-CLIENT-ID'))
-cbe = CoinbaseAdvancedExchange(os.environ.get('CBA-API-KEY'), os.environ.get('CBA-API-SECRET'))
-ge = GeminiExchange(os.environ.get('GE-API-KEY'), os.environ.get('GE-API-SECRET'))
-ke = KrakenExchange(os.environ.get('KR-API-KEY'), os.environ.get('KR-API-SECRET'))
+be = BitstampExchange(
+    os.environ.get("BS-API-KEY"),
+    os.environ.get("BS-API-SECRET"),
+    os.environ.get("BS-CLIENT-ID"),
+)
+cbe = CoinbaseAdvancedExchange(
+    os.environ.get("CBA-API-KEY"), os.environ.get("CBA-API-SECRET")
+)
+ge = GeminiExchange(os.environ.get("GE-API-KEY"), os.environ.get("GE-API-SECRET"))
+ke = KrakenExchange(os.environ.get("KR-API-KEY"), os.environ.get("KR-API-SECRET"))
 
-for ex in [ke]:
+for ex in [be, ge, ke, cbe]:
     try:
-        print(f'\nExchange: {dgu.alphanumeric(str(type(ex)))}')
-        t = ex.trade(dgu.BTC_USD_PAIR, 'BUY', 0.001, 72088.9)
-#        t2 = ex.trade(dgu.ETH_USD_PAIR, 'SELL', 0.02, 4038.0)
-        print('Trade-check trade: ')
+        print(f"\nExchange: {dgu.alphanumeric(str(type(ex)))}")
+        #        t = ex.trade(dgu.FET_USD_PAIR, 'BUY', 10, 2.64)
+        #        t = ex.trade(dgu.GALA_USD_PAIR, 'BUY', 300, 0.072)
+        #        t = ex.trade(dgu.RNDR_USD_PAIR, 'BUY', 5, 11.21)
+
+        t = ex.trade(dgu.BTC_USD_PAIR, "BUY", 0.0005, 66700.00)
+        #t = ex.trade(dgu.ETH_USD_PAIR, 'BUY', 0.05, 3069.9)
+        print("Trading: ")
         pprint.pprint(t)
-#        pprint.pprint(t2)
+    #        pprint.pprint(t2)
     except Exception as e:
-        print('Trade-check exception: ')
+        print("Trading exception: ")
         pprint.pprint(e)
 
 # Examples:

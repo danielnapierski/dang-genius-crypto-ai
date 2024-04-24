@@ -1,3 +1,4 @@
+#!python3
 import os
 import pprint
 
@@ -8,18 +9,20 @@ from dang_genius.coinbaseadvancedexchange import CoinbaseAdvancedExchange
 
 load_dotenv()
 
-CBA_API_KEY = os.environ.get('CBA-API-KEY')
-CBA_API_SECRET = os.environ.get('CBA-API-SECRET')
+CBA_API_KEY = os.environ.get("CBA-API-KEY")
+CBA_API_SECRET = os.environ.get("CBA-API-SECRET")
 
-cbae = CoinbaseAdvancedExchange(os.environ.get('CBA-API-KEY'), os.environ.get('CBA-API-SECRET'))
-print('\nCoinbaseAdvancedExchange')
+cbae = CoinbaseAdvancedExchange(
+    os.environ.get("CBA-API-KEY"), os.environ.get("CBA-API-SECRET")
+)
+print("\nCoinbaseAdvancedExchange")
 pprint.pprint(cbae.balances)
 pprint.pprint(cbae.tickers)
 print()
 jwt = cbae._generate_jwt()
 pprint.pprint(jwt)
 
-print('\njwt_generator')
+print("\njwt_generator")
 # Get another JWT with using jwt_generator:
 request_method = "GET"
 request_path = "/api/v3/brokerage/accounts"

@@ -1,3 +1,4 @@
+#!python3
 import json
 import os
 import ssl
@@ -7,18 +8,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GE_API_KEY = os.environ.get('GE-API-KEY')
-GE_API_SECRET = os.environ.get('GE-API-SECRET')
+GE_API_KEY = os.environ.get("GE-API-KEY")
+GE_API_SECRET = os.environ.get("GE-API-SECRET")
 
 
 def on_message(ws, message):
     message_object = json.loads(message)
-    event = message_object.get('events')[0]
-    side = event.get('side')
-    if 'bid' == side:
-        print('Bid: ' + event.get('price'))
-    if 'ask' == side:
-        print('Ask: ' + event.get('price'))
+    event = message_object.get("events")[0]
+    side = event.get("side")
+    if "bid" == side:
+        print("Bid: " + event.get("price"))
+    if "ask" == side:
+        print("Ask: " + event.get("price"))
 
 
 def on_error(ws, error):
@@ -45,7 +46,10 @@ def on_close(ws):
 # ws.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
 
 ws = websocket.WebSocketApp(
-    "wss://api.gemini.com/v1/marketdata/btcusd?top_of_book=true&bids=true",
-    on_message=on_message)
+#    "wss://api.gemini.com/v1/marketdata/ethusd?top_of_book=true&bids=true",
+    "wss://api.gemini.com/v1/multimarketdata?top_of_book=true&symbols=BTCUSD,ETHUSD",
+    on_message=on_message,
+)
+#wss://api.gemini.com/v1/multimarketdata?symbols=BTCUSD,ETHUSD
 
 ws.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})

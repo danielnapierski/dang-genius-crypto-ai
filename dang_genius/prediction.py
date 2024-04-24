@@ -40,17 +40,17 @@ def arima():
 
 def exponential_smoothing(timestamps, values, future_time, alpha):
     """
-  Performs exponential smoothing on a time series and predicts future value.
+    Performs exponential smoothing on a time series and predicts future value.
 
-  Args:
-      timestamps: List of timestamps as datetime objects.
-      values: List of corresponding values at each timestamp.
-      future_time: Future timestamp as a datetime object.
-      alpha: Smoothing parameter (0 < alpha < 1).
+    Args:
+        timestamps: List of timestamps as datetime objects.
+        values: List of corresponding values at each timestamp.
+        future_time: Future timestamp as a datetime object.
+        alpha: Smoothing parameter (0 < alpha < 1).
 
-  Returns:
-      Predicted value at the future time.
-  """
+    Returns:
+        Predicted value at the future time.
+    """
 
     smoothed_values = [values[0]]  # Initialize with the first value
 
@@ -60,6 +60,8 @@ def exponential_smoothing(timestamps, values, future_time, alpha):
         smoothed_values.append(s_t_i)
 
     delta_t = (future_time - timestamps[-1]).total_seconds()  # Convert to seconds
-    prediction = smoothed_values[-1] * (1 - alpha) ** delta_t  # Use the last smoothed value
+    prediction = (
+        smoothed_values[-1] * (1 - alpha) ** delta_t
+    )  # Use the last smoothed value
 
     return prediction
