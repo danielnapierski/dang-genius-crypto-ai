@@ -1,5 +1,4 @@
 #!python3
-import sqlite3
 import dang_genius.util as dgu
 import pandas as pd
 import numpy as np
@@ -164,7 +163,6 @@ def predict_future(model, X_test):
 
 def main():
     connection = sqlite3.connect(dgu.DB_NAME)
-    cursor = connection.cursor()
     limit = 600
     sql_query = f"""SELECT datetime(minute_stamp) AS dt, delta AS value, pennies FROM price_history 
             WHERE pair == 'BTC_USD' ORDER BY id LIMIT {limit}"""
