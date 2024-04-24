@@ -5,6 +5,7 @@ import numpy as np
 
 import dang_genius.util as util
 
+
 def market_check(fee_estimate: float) -> dict:
     try:
         asks: dict = {}
@@ -14,7 +15,7 @@ def market_check(fee_estimate: float) -> dict:
 
         ask_query = """SELECT id, exchange, pair, MAX(timestamp), pennies FROM ask 
                     GROUP BY exchange, pair ORDER BY id DESC LIMIT 5"""
-# TODO: make sure the records are recent.
+        # TODO: make sure the records are recent.
 
         cursor.execute(ask_query)
         records = cursor.fetchall()
@@ -28,7 +29,7 @@ def market_check(fee_estimate: float) -> dict:
 
         bid_query = """SELECT id, exchange, pair, MAX(timestamp), pennies FROM bid 
                             GROUP BY exchange, pair ORDER BY id DESC LIMIT 5"""
- # TODO: make sure the records are recent.
+        # TODO: make sure the records are recent.
 
         cursor.execute(bid_query)
         records = cursor.fetchall()
@@ -45,21 +46,30 @@ def market_check(fee_estimate: float) -> dict:
         spread = max_bid - min_ask
         fee = min_ask * fee_estimate
         sys.stdout.write(
-            f'\r{datetime.now()} min_ask: {min_ask:10.2f}\tmax_bid: {max_bid:10.2f}\t'
-            f'Spread: {spread:6.2f}\tFee: {fee:6.2f}\t')
+            f"\r{datetime.now()} min_ask: {min_ask:10.2f}\tmax_bid: {max_bid:10.2f}\t"
+            f"Spread: {spread:6.2f}\tFee: {fee:6.2f}\t"
+        )
         sys.stdout.flush()
 
         if spread > fee:
-            return {util.BUY_KEY: asks[min_ask], util.SELL_KEY: bids[max_bid], util.SPREAD_KEY: spread,
-                    util.MIN_ASK_KEY: min_ask, util.MAX_BID_KEY: max_bid}
+            return {
+                util.BUY_KEY: asks[min_ask],
+                util.SELL_KEY: bids[max_bid],
+                util.SPREAD_KEY: spread,
+                util.MIN_ASK_KEY: min_ask,
+                util.MAX_BID_KEY: max_bid,
+            }
 
-        return {util.MSG_KEY: f'spread {spread:.5f} is less than fees {fee:.5f}', util.SPREAD_KEY: spread}
+        return {
+            util.MSG_KEY: f"spread {spread:.5f} is less than fees {fee:.5f}",
+            util.SPREAD_KEY: spread,
+        }
     except sqlite3.Error as sql_error:
-        print(f'MC SQL error: {sql_error}')
+        print(f"MC SQL error: {sql_error}")
     except TypeError as type_error:
-        print(f'MC Type error: {type_error}')
+        print(f"MC Type error: {type_error}")
     except Exception as e:
-        print(f'MC Exception: {e}')
+        print(f"MC Exception: {e}")
     finally:
         if connection:
             connection.close()

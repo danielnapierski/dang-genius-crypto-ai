@@ -12,5 +12,12 @@ class Exchange:
     def tickers(self) -> dict[str, dict | None]:
         raise NotImplementedError("Exchanges should implement tickers.")
 
-    def trade(self, pair: str, side: str, amount: float, limit: float, optionality: float | None = None):
+    def trade(
+        self,
+        pair: str,
+        side: str,
+        amount: float,
+        limit: float,
+        optionality: float | None = None,
+    ):
         raise NotImplementedError("Exchanges should implement trading.")

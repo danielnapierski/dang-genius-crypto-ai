@@ -1,15 +1,26 @@
+name: dg-3.12
+channels:
+  - defaults
+  - conda-forge
 dependencies:
 - python=3.12
 - pip
 - pip:
   - BitstampClient
+  - black
   - coinbase-advanced-py
   - coinbasepro
+  - causal-learn
+  - flake8
   - gemini_api
   - krakenex
+  - matplotlib
   - pandas
+  - prophet
   - python-dotenv
   - requests
   - setuptools
+  - scikit-learn
   - statsmodels
+  - tensorflow
   - websocket-client

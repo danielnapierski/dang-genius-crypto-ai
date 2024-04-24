@@ -4,12 +4,13 @@ from dang_genius.wallet import check_swap_funding as check_swap_funding
 import dang_genius.util as dgu
 from dang_genius.conductor import Conductor
 
+
 def bot() -> None:
     conductor = Conductor()
-    print('Are you ready to rumble?')
+    print("Are you ready to rumble?")
     input_text = input()
     print(input_text)
-# TODO: add go/no go
+    # TODO: add go/no go
     exit()
     conductor.buy_the_dip(dgu.BTC_USD_PAIR)
     conductor.buy_the_dip(dgu.ETH_USD_PAIR)
@@ -27,14 +28,20 @@ def bot() -> None:
 
             if spread and spread > max_spread:
                 max_spread = spread
-                print(f'\nMax Spread: {max_spread:.2f}')
+                print(f"\nMax Spread: {max_spread:.2f}")
 
             if buy_ex and sell_ex:
-                funded = check_swap_funding(buy_ex, 'USD', conductor.usd_amount,
-                                            sell_ex, 'BTC', conductor.btc_amount)
+                funded = check_swap_funding(
+                    buy_ex,
+                    "USD",
+                    conductor.usd_amount,
+                    sell_ex,
+                    "BTC",
+                    conductor.btc_amount,
+                )
 
                 if funded:
                     conductor.buy_btc_sell_btc(buy_ex, sell_ex, min_ask, max_bid)
                 else:
-                    print('MISSED! Not enough funds.')
+                    print("MISSED! Not enough funds.")
         time.sleep(0.5)
