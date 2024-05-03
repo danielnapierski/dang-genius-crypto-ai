@@ -1,4 +1,5 @@
 import os
+import pprint
 import random
 import sqlite3
 import sys
@@ -24,6 +25,7 @@ class Conductor:
         self.fee_estimate = float(os.environ.get("FEE-ESTIMATE"))
         self.btc_amount = float(os.environ.get("BTC-SWAP-AMT"))
         self.usd_amount = float(os.environ.get("USD-SWAP-AMT"))
+        self._next_buy_time = datetime.now(tz=dgu.TZ_UTC)
         connection = sqlite3.connect(dgu.DB_NAME)
         cursor = connection.cursor()
         cursor.execute(
@@ -558,19 +560,20 @@ class Conductor:
                 # take any wins that are available
                 self.win()
 
+                self.buy_smart()
                 # make intents for current purchase and future sale expecting fees 0.5% ($5/$1000)
                 # make intents long-lived
 
             except Exception as e:
                 print(f"Grind exception: {e}")
             finally:
-                time.sleep(1)
+                time.sleep(2)
 
     def win(self):
         connection = sqlite3.connect(dgu.DB_NAME)
         cursor = connection.cursor()
         cursor.execute(
-            f"""SELECT pair FROM win WHERE completed IS NULL AND in_progress IS NULL GROUP BY pair ORDER BY pair"""
+            f"""SELECT pair FROM win WHERE completed IS NULL AND in_progress IS NULL GROUP BY pair ORDER BY RANDOM()"""
         )
         winning_pairs = cursor.fetchall()
         for p_row in winning_pairs:
@@ -583,7 +586,7 @@ class Conductor:
             wins = cursor.fetchall()
             if len(wins) == 1:
                 win = wins[0]
-                print(f"WIN: {win}")
+                print(f"Next: {win}")
                 bid_query = f"""SELECT id, exchange, pair, MAX(datetime(timestamp)), pennies FROM bid 
                                             WHERE pair='{pair}' GROUP BY exchange, pair ORDER BY pennies DESC LIMIT 5"""
                 # NOTE: we should get 1 record for each exchange
@@ -597,28 +600,64 @@ class Conductor:
                     if bid_pennies >= limit_pennies:
                         print(f"BID: {bid}")
                         ex = bid[1]
-                        funded = self.check_funding(
-                            "SELL", pair, ex, amount, limit_pennies
-                        )
-                        if funded:
+                        if self.check_funding("SELL", pair, ex, amount, limit_pennies):
                             exchange: Exchange = self.exchanges[ex]
                             limit = float(limit_pennies / 100.0)
                             trade_result = exchange.trade(pair, "SELL", amount, limit)
-
-                            if None != trade_result and {} != trade_result:
+                            if trade_result is not None and {} != trade_result:
                                 order_locator = (
                                     dgu.alphanumeric(str(trade_result))
                                     + "_"
                                     + dgu.alphanumeric(str(ex))
                                 )
-                                print(f"ORDER: {order_locator}")
                                 update_win = f"""UPDATE win SET completed=1, order_locator='{order_locator}' 
                                                     WHERE ID={win_id}"""
-                                print(f"UPDATE WIN: {update_win}")
                                 cursor.execute(update_win)
                                 connection.commit()
                                 cursor.close()
+                                print(
+                                    f"WIN!!!\nORDER: {order_locator}\nUPDATE WIN: {update_win}"
+                                )
                                 return
+
+    def buy_smart(self):
+        try:
+            # pick a product to buy
+            pair = dgu.BTC_USD_PAIR
+            amount = 0.0003
+
+            # select exchange from asks
+            connection = sqlite3.connect(dgu.DB_NAME)
+            cursor = connection.cursor()
+            cursor.execute(f"""SELECT exchange, pennies FROM ask WHERE pair=='{pair}' ORDER BY pennies ASC LIMIT 1""")
+            records = cursor.fetchall()
+            if len(records) != 1:
+                raise Exception(f"No ASK found for {pair}")
+            if datetime.now(tz=dgu.TZ_UTC) < self._next_buy_time:
+                return
+            exchange = records[0][0]
+            limit_pennies = int(records[0][1] * 1.001)
+            limit = float(limit_pennies / 100.0)
+            if self.check_funding('BUY', pair, exchange, amount, limit_pennies):
+                ex = self.exchanges[exchange]
+                print(f"\nBest price exchange: {dgu.alphanumeric(str(type(ex)))} limit:{limit_pennies}")
+                # try to buy only at best exchange
+                t = ex.trade(pair, 'BUY', amount, float(f'{limit:0.2f}'))
+                if t is not None:
+                    print("Traded: ")
+                    pprint.pprint(t)
+                    win_pennies = dgu.round_to_nearest_hundred(int(limit_pennies * 1.006))
+                    # TODO: use fee estimate
+                    # record future win with fixed profit
+                    cursor.execute("""INSERT INTO win (pair, amount, limit_pennies) VALUES (?, ?, ?);""",
+                                   (pair, amount, win_pennies),
+                                   )
+                    connection.commit()
+                    cursor.close()
+                    self._next_buy_time = datetime.now(tz=dgu.TZ_UTC) + timedelta(seconds=600)
+        except Exception as e:
+            print("Buying exception: ")
+            pprint.pprint(e)
 
     # work in pennies to avoid floats
     def take_the_win(self):

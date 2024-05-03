@@ -127,3 +127,7 @@ def time_str_to_the_minute(date_time):
 def get_datetime(text: str) -> datetime:
     timestamp = datetime.strptime(text, DATETIME_FORMAT)
     return timestamp
+
+def round_to_nearest_hundred(number):
+  """Rounds an integer to the nearest hundred (200, 300, 400, etc.)"""
+  return number - number % 100 + (100 if number % 100 > 50 else 0)

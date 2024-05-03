@@ -2,6 +2,7 @@
 import os
 import threading
 import time
+from datetime import datetime
 
 from dotenv import load_dotenv
 
@@ -19,9 +20,7 @@ be = BitstampExchange(
     os.environ.get("BS-API-SECRET"),
     os.environ.get("BS-CLIENT-ID"),
 )
-cae = CoinbaseAdvancedExchange(
-    os.environ.get("CBA-API-KEY"), os.environ.get("CBA-API-SECRET")
-)
+cae = CoinbaseAdvancedExchange(os.environ.get("CBA-API-KEY"), os.environ.get("CBA-API-SECRET"))
 ge = GeminiExchange(os.environ.get("GE-API-KEY"), os.environ.get("GE-API-SECRET"))
 ke = KrakenExchange(os.environ.get("KR-API-KEY"), os.environ.get("KR-API-SECRET"))
 
@@ -73,11 +72,13 @@ while len(completed.keys()) != 4:
 
 tally_keys = sorted(tallies)
 print(f"TALLIES: {tallies}")
-# print(f'BIDS: {bids}')
+print(f'BIDS: {bids}')
 bids["USD_USD"] = 1.0
 estimates = {}
 for t in tally_keys:
     pair_usd = f"{t}_USD"
     estimates[t] = float(f"{float(bids[pair_usd]) * float(tallies[t]): .2f}")
 # print(f'ESTIMATED VALUES: {estimates}')
+print('')
+print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 print(f"\t\t\t\tEstimated Portfolio Value: ${sum(estimates.values()): .2f}")

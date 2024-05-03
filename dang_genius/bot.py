@@ -7,14 +7,20 @@ from dang_genius.conductor import Conductor
 
 def bot() -> None:
     conductor = Conductor()
-    print("Are you ready to rumble?")
+    print("Are you ready to rumble? Press 'y' [Enter]")
     input_text = input()
-    print(input_text)
-    # TODO: add go/no go
+    if 'y' != input_text.lower():
+        print('Quitting ...')
+        exit()
+
+    print('Buying ...')
     exit()
-    conductor.buy_the_dip(dgu.BTC_USD_PAIR)
-    conductor.buy_the_dip(dgu.ETH_USD_PAIR)
-    #    conductor.take_the_win()
+#    conductor.
+
+# OLD
+#    conductor.buy_the_dip(dgu.BTC_USD_PAIR)
+#    conductor.buy_the_dip(dgu.ETH_USD_PAIR)
+#    conductor.take_the_win()
 
     max_spread: float = 0.0
     while True:
