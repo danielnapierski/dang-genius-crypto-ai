@@ -37,6 +37,9 @@ def record_balances(ex: Exchange) -> None:
     with lock:
         balances[ex] = ex.balances
         for currency in balances[ex].keys():
+            if 'BTC' == str(currency).upper():
+                x = balances[ex][currency]
+                print(f'BTC: {x}')
             tallies[currency] = (
                 tallies[currency] + balances[ex][currency]
                 if currency in tallies.keys()
@@ -65,7 +68,7 @@ def record_balances(ex: Exchange) -> None:
 
 
 for ex in [be, cae, ge, ke]:
-    threading.Thread(target=record_balances, args=(ex,)).start()
+    threading.Thread(target=record_balances, daemon=True, args=(ex,)).start()
 
 while len(completed.keys()) != 4:
     time.sleep(0.1)

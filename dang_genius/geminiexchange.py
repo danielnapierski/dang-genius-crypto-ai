@@ -50,7 +50,7 @@ class GeminiExchange(Exchange):
         self.BUY_SIDE = "buy"
         self.SELL_SIDE = "sell"
         self.public_api = Public()
-        Thread(target=self.follow_market_thread).start()
+        Thread(target=self.follow_market_thread, daemon=True).start()
 
     def follow_market_thread(self):
         symbols = []

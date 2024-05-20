@@ -83,17 +83,21 @@ class KrakenExchange(Exchange):
         # MC, MV, NMR, NODL, NYM, ORCA, OTP, OXY, PARA, PEPE, PERP, PICA, POL, PSTAKE, PYTH, RAY, REQ, ROOK, SAMO, SDN,
         # STEP, SUI, SXP, TEER, WETH, WIF, WOO, YGG or XRT.
 
+# TODO: add MATIC, STORJ, SUSHI, OP
+
     @property
     def balances(self) -> dict:
         with self._lock:
             b = self.private_client.query_private("Balance")["result"]
 
-        products = {}
+        products = {'ZUSD': True}
         for p in self.supported_pairs.values():
-            chars = len(p)
-            half = int((chars + 1) / int(2))
-            products[p[0:half]] = True
-            products[p[half:chars]] = True
+            product = p.upper().replace('USD','')
+            if product == 'XXBTZ':
+                product = 'XXBT'
+            elif product == 'XETHZ':
+                product = 'XETH'
+            products[product] = True
 
         balances = {}
         for k in products.keys():

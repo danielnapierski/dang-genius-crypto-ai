@@ -43,20 +43,19 @@ class BitstampExchange(Exchange):
         try:
             with self._lock:
                 b = self.trading_client.account_balance(False, False)
-
-            keys = b.keys()
-            result = {}
-            for dp in self._supported_pairs:
-                product = dp.split("_")[0].lower()
-                k = f"{product}_available"
-                if k in keys:
-                    a = float(b[k])
-                    result[product.upper()] = float(f"{a: .5f}")
-            usd = 0.0
-            if "usd_available" in keys:
-                usd = float(b["usd_available"])
-            result["USD"] = float(f"{usd: .2f}")
-            return result
+                keys = b.keys()
+                result = {}
+                for dp in self._supported_pairs:
+                    product = dp.split("_")[0].lower()
+                    k = f"{product}_available"
+                    if k in keys:
+                        a = float(b[k])
+                        result[product.upper()] = float(f"{a: .5f}")
+                usd = 0.0
+                if "usd_available" in keys:
+                    usd = float(b["usd_available"])
+                result["USD"] = float(f"{usd: .2f}")
+                return result
         except Exception as e:
             print(f"BS balances exception: {e}")
             return None

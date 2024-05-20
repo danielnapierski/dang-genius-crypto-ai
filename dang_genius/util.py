@@ -131,3 +131,26 @@ def get_datetime(text: str) -> datetime:
 def round_to_nearest_hundred(number):
   """Rounds an integer to the nearest hundred (200, 300, 400, etc.)"""
   return number - number % 100 + (100 if number % 100 > 50 else 0)
+
+def round_to_nearest_ten(number):
+  """Rounds an integer to the nearest ten (20, 30, 40, etc.)"""
+  return number - number % 10 + (10 if number % 10 > 5 else 0)
+
+
+def smart_round(number: float):
+    if abs(number) > 10000:
+        return round_to_nearest_hundred(number)
+    elif abs(number) > 1000:
+        return round_to_nearest_ten(number)
+    elif abs(number) > 10:
+        return int(number)
+    elif abs(number) > 1:
+        return float(f'{number:.1f}')
+    elif abs(number) > 0.1:
+        return float(f'{number:.2f}')
+    elif abs(number) > 0.01:
+        return float(f'{number:.3f}')
+    elif abs(number) > 0.001:
+        return float(f'{number:.4f}')
+    else:
+        return float(f'{number:.5f}')
