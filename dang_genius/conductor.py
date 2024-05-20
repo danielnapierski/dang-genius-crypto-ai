@@ -18,53 +18,55 @@ from dang_genius.exchange import Exchange
 from dang_genius.geminiexchange import GeminiExchange
 from dang_genius.krakenexchange import KrakenExchange
 
-
 class Conductor:
     def __init__(self):
         self.env_loaded = load_dotenv()
         self.fee_estimate = float(os.environ.get("FEE-ESTIMATE"))
         self.btc_amount = float(os.environ.get("BTC-SWAP-AMT"))
         self.usd_amount = float(os.environ.get("USD-SWAP-AMT"))
-        self._next_buy_time = datetime.now(tz=dgu.TZ_UTC)
-        connection = sqlite3.connect(dgu.DB_NAME)
-        cursor = connection.cursor()
-        cursor.execute(
-            """CREATE TABLE IF NOT EXISTS ask 
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, timestamp TEXT, pennies INTEGER)"""
-        )
-        cursor.execute("""DELETE FROM ask""")
-        cursor.execute(
-            """CREATE TABLE IF NOT EXISTS bid
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, timestamp TEXT, pennies INTEGER)"""
-        )
-        cursor.execute("""DELETE FROM bid""")
-        cursor.execute(
-            """CREATE TABLE IF NOT EXISTS trade
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, timestamp TEXT, pennies INTEGER)"""
-        )
-        cursor.execute(
-            """CREATE TABLE IF NOT EXISTS wallet
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, symbol TEXT, timestamp TEXT, available FLOAT)"""
-        )
-        cursor.execute("""DELETE FROM wallet""")
-        cursor.execute(
-            """CREATE TABLE IF NOT EXISTS price_history
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, pair TEXT, minute_stamp TEXT, pennies INTEGER, delta INTEGER)"""
-        )
-        cursor.execute(
-            """CREATE TABLE IF NOT EXISTS intent
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, pair TEXT, side TEXT, exchange TEXT, order_desc TEXT, 
-            date_expires TEXT, amount FLOAT, limit_pennies INTEGER, 
-            completed BIT, failed BIT, in_progress BIT, check_price BIT, keep BIT)"""
-        )
-        cursor.execute("""UPDATE intent SET in_progress=1""")
-        cursor.execute(
-            """CREATE TABLE IF NOT EXISTS win
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, pair TEXT, order_locator TEXT, amount FLOAT, limit_pennies INTEGER, 
-            completed BIT, in_progress BIT)"""
-        )
-        connection.commit()
-        cursor.close()
+        self.buy_pennies = int(os.environ.get("BUY-PENNIES"))
+        self._next_buy_time = datetime.now(tz=dgu.TZ_UTC) + timedelta(seconds=30)
+        with threading.Lock():
+            with sqlite3.connect(dgu.DB_NAME) as connection:
+                cursor = connection.cursor()
+                cursor.execute("""PRAGMA lock_timeout = 500;""")
+                cursor.execute(
+                    """CREATE TABLE IF NOT EXISTS ask 
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, timestamp TEXT, pennies INTEGER)"""
+                )
+                cursor.execute("""DELETE FROM ask""")
+                cursor.execute(
+                    """CREATE TABLE IF NOT EXISTS bid
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, timestamp TEXT, pennies INTEGER)"""
+                )
+                cursor.execute("""DELETE FROM bid""")
+                cursor.execute(
+                    """CREATE TABLE IF NOT EXISTS trade
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, pair TEXT, timestamp TEXT, pennies INTEGER)"""
+                )
+                cursor.execute(
+                    """CREATE TABLE IF NOT EXISTS wallet
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, exchange TEXT, symbol TEXT, timestamp TEXT, available FLOAT)"""
+                )
+                cursor.execute("""DELETE FROM wallet""")
+                cursor.execute(
+                    """CREATE TABLE IF NOT EXISTS price_history
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, pair TEXT, minute_stamp TEXT, pennies INTEGER, delta INTEGER)"""
+                )
+                cursor.execute(
+                    """CREATE TABLE IF NOT EXISTS intent
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, pair TEXT, side TEXT, exchange TEXT, order_desc TEXT, 
+                    date_expires TEXT, amount FLOAT, limit_pennies INTEGER, 
+                    completed BIT, failed BIT, in_progress BIT, check_price BIT, keep BIT)"""
+                )
+                cursor.execute("""UPDATE intent SET in_progress=1""")
+                cursor.execute(
+                    """CREATE TABLE IF NOT EXISTS win
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, pair TEXT, order_locator TEXT, amount FLOAT, limit_pennies INTEGER, 
+                    completed BIT, in_progress BIT)"""
+                )
+                connection.commit()
+                cursor.close()
 
         self.exchanges = {
             dgu.alphanumeric(str(BitstampExchange)): BitstampExchange(
@@ -133,21 +135,27 @@ class Conductor:
                     balances: dict = ex.balances
                     now = datetime.now(tz=dgu.TZ_UTC)
                     timestamp = now.strftime(dgu.DATETIME_FORMAT)
-                    connection = sqlite3.connect(dgu.DB_NAME)
-                    cursor = connection.cursor()
-                    delete_query = f"DELETE FROM wallet WHERE exchange='{exchange}'"
-                    cursor.execute(delete_query)
-                    insert_query = """INSERT INTO wallet
-                                      (exchange, symbol, timestamp, available) 
-                                      VALUES (?, ?, ?, ?);"""
-                    records = []
-                    for b in balances:
-                        val = float(balances.get(b))
-                        if val > 0.0:
-                            records.append((exchange, str(b).upper(), timestamp, val))
-                    cursor.executemany(insert_query, records)
-                    connection.commit()
-                    cursor.close()
+                    with threading.Lock():
+                        with sqlite3.connect(dgu.DB_NAME) as connection:
+                            cursor = connection.cursor()
+                            delete_query = (
+                                f"DELETE FROM wallet WHERE exchange='{exchange}'"
+                            )
+                            cursor.execute(delete_query)
+                            insert_query = """INSERT INTO wallet
+                                              (exchange, symbol, timestamp, available) 
+                                              VALUES (?, ?, ?, ?);"""
+                            records = []
+                            for b in balances:
+                                val = float(balances.get(b))
+                                if val > 0.0:
+                                    records.append(
+                                        (exchange, str(b).upper(), timestamp, val)
+                                    )
+                            cursor.executemany(insert_query, records)
+                            connection.commit()
+                            cursor.close()
+                            print(f'Wallet updated {exchange}')
                 except KeyError as key_error:
                     print(f"FW Failed to get balances from {ex}\n{key_error}")
                 except TimeoutError as timeout_error:
@@ -155,16 +163,14 @@ class Conductor:
                 except ValueError as value_error:
                     print(f"FW Value error: {value_error} {exchange}")
                 except ConnectionError as connection_error:
-                    print(f"FW Connection error: {connection_error} {exchange}")
+                    print(
+                        f"Follow Wallet Connection error: {connection_error} {exchange}"
+                    )
                 except sqlite3.Error as sql_error:
-                    print(f"FW SQL error: {sql_error} {exchange}")
+                    print(f"Follow Wallet SQL error: {sql_error} {exchange}")
                 except Exception as e:
                     print(f"FW Exception: {e} {exchange}")
-                finally:
-                    if connection:
-                        connection.close()
-
-            time.sleep(10)
+            time.sleep(20)
 
     def follow_market(self):
         Thread(target=self.follow_market_thread).start()
@@ -173,97 +179,102 @@ class Conductor:
         prior_exchange = ""
         prior_pennies = 0
         while True:
-            connection = sqlite3.connect(dgu.DB_NAME)
-            cursor = connection.cursor()
-            cursor.execute(f"""SELECT pair FROM win GROUP BY pair ORDER BY pair""")
-            winning_pairs = cursor.fetchall()
-            keys = list(self.exchanges.keys())
-            random.shuffle(keys)
-            for k in keys:
-                ex = self.exchanges[k]
-                exchange: str = dgu.alphanumeric(str(type(ex)))
-                if prior_exchange == exchange and len(keys) > 1:
-                    continue
-                try:
-                    tickers: dict = ex.tickers
-                    now = datetime.now(tz=dgu.TZ_UTC)
-                    timestamp = dgu.time_str(now)
-                    minute_stamp = dgu.time_str_to_the_minute(now)
-                    for p_row in winning_pairs:
-                        pair = p_row[0]
-                        if pair not in tickers.keys():
-                            # not all products are available at all exchanges
+            with threading.Lock():
+                with sqlite3.connect(dgu.DB_NAME) as connection:
+                    cursor = connection.cursor()
+                    cursor.execute(
+                        f"""SELECT DISTINCT COALESCE(win.pair, wallet.symbol || '_USD') AS c
+    FROM win FULL JOIN wallet ON wallet.symbol = REPLACE(win.pair, '_USD', '')
+    WHERE wallet.symbol != 'USD'
+    ORDER BY c"""
+                    )
+                    winning_pairs = cursor.fetchall()
+                    keys = list(self.exchanges.keys())
+                    random.shuffle(keys)
+                    for k in keys:
+                        ex = self.exchanges[k]
+                        exchange: str = dgu.alphanumeric(str(type(ex)))
+                        if prior_exchange == exchange and len(keys) > 1:
                             continue
+                        try:
+                            tickers: dict = ex.tickers
+                            now = datetime.now(tz=dgu.TZ_UTC)
+                            timestamp = dgu.time_str(now)
+                            minute_stamp = dgu.time_str_to_the_minute(now)
+                            for p_row in winning_pairs:
+                                pair = p_row[0]
+                                if pair not in tickers.keys():
+                                    # not all products are available at all exchanges
+                                    continue
 
-                        ticker: dict = tickers[pair]
-                        ask = ticker.get(dgu.ASK_KEY)
-                        bid = ticker.get(dgu.BID_KEY)
-                        if not ask or not bid:
-                            raise Exception(
-                                f"Did not get values from ticker {exchange} {pair}"
-                            )
+                                ticker: dict = tickers[pair]
+                                ask = ticker.get(dgu.ASK_KEY)
+                                bid = ticker.get(dgu.BID_KEY)
+                                if not ask or not bid:
+                                    raise Exception(
+                                        f"Did not get values from ticker {exchange} {pair}"
+                                    )
 
-                        connection = sqlite3.connect(dgu.DB_NAME)
-                        cursor = connection.cursor()
-                        cursor.execute(
-                            f"DELETE FROM ask WHERE exchange='{exchange}' AND pair='{pair}'"
-                        )
-                        cursor.execute(
-                            """INSERT INTO ask (exchange, pair, timestamp, pennies) 
-                            VALUES (?, ?, ?, ?);""",
-                            (exchange, pair, timestamp, int(ask * 100)),
-                        )
-                        cursor.execute(
-                            f"DELETE FROM bid WHERE exchange='{exchange}' AND pair='{pair}'"
-                        )
-                        cursor.execute(
-                            """INSERT INTO bid (exchange, pair, timestamp, pennies) 
-                            VALUES (?, ?, ?, ?);""",
-                            (exchange, pair, timestamp, int(bid * 100)),
-                        )
+                                cursor.execute(
+                                    f"DELETE FROM ask WHERE exchange='{exchange}' AND pair='{pair}'"
+                                )
+                                cursor.execute(
+                                    """INSERT INTO ask (exchange, pair, timestamp, pennies) 
+                                    VALUES (?, ?, ?, ?);""",
+                                    (exchange, pair, timestamp, int(ask * 100)),
+                                )
+                                cursor.execute(
+                                    f"DELETE FROM bid WHERE exchange='{exchange}' AND pair='{pair}'"
+                                )
+                                cursor.execute(
+                                    """INSERT INTO bid (exchange, pair, timestamp, pennies) 
+                                    VALUES (?, ?, ?, ?);""",
+                                    (exchange, pair, timestamp, int(bid * 100)),
+                                )
 
-                        select_latest_price_query = f"""SELECT id, pair, MAX(minute_stamp), pennies, delta 
-                                                        FROM price_history WHERE pair='{pair}' 
-                                                        GROUP BY pair ORDER BY id DESC LIMIT 1"""
-                        cursor.execute(select_latest_price_query)
-                        records = cursor.fetchall()
-                        db_has_current = False
+                                select_latest_price_query = f"""SELECT id, pair, MAX(minute_stamp), pennies, delta 
+                                                                FROM price_history WHERE pair='{pair}' 
+                                                                GROUP BY pair ORDER BY id DESC LIMIT 1"""
+                                cursor.execute(select_latest_price_query)
+                                records = cursor.fetchall()
+                                db_has_current = False
 
-                        if len(records) == 1:
-                            r_datetime = records[0][2]
-                            prior_pennies = records[0][3]
-                            db_has_current = minute_stamp == r_datetime
+                                if len(records) == 1:
+                                    r_datetime = records[0][2]
+                                    prior_pennies = records[0][3]
+                                    db_has_current = minute_stamp == r_datetime
 
-                        if not db_has_current:
-                            pennies = int((bid * 50) + (ask * 50))
-                            cursor.execute(
-                                """INSERT INTO price_history (pair, minute_stamp, pennies, delta) 
-                                VALUES (?, ?, ?, ?);""",
-                                (
-                                    pair,
-                                    minute_stamp,
-                                    pennies,
-                                    (pennies - prior_pennies),
-                                ),
-                            )
-                        # TODO: make sure the records are recent.
-                        # TODO: last trade?
-                        connection.commit()
+                                if not db_has_current:
+                                    pennies = int((bid * 50) + (ask * 50))
+                                    cursor.execute(
+                                        """INSERT INTO price_history (pair, minute_stamp, pennies, delta) 
+                                        VALUES (?, ?, ?, ?);""",
+                                        (
+                                            pair,
+                                            minute_stamp,
+                                            pennies,
+                                            (pennies - prior_pennies),
+                                        ),
+                                    )
+                                # TODO: make sure the records are recent.
+                                # TODO: last trade?
+                                connection.commit()
+                                prior_exchange = exchange
+                        except TimeoutError as timeout_error:
+                            print(f"FM Timeout error: {timeout_error} {exchange}")
+                        except ValueError as value_error:
+                            print(f"FM Value error: {value_error} {exchange}")
+                        except ConnectionError as connection_error:
+                            print(f"FM Connection error: {connection_error} {exchange}")
+                        except sqlite3.Error as sqlite3_error:
+                            print(f"FM SQLite3 error: {sqlite3_error} {exchange}")
+                        except Exception as e:
+                            print(f"FM Exception: {e} {exchange}")
+
+                    try:
                         cursor.close()
-                        prior_exchange = exchange
-                except TimeoutError as timeout_error:
-                    print(f"FM Timeout error: {timeout_error} {exchange}")
-                except ValueError as value_error:
-                    print(f"FM Value error: {value_error} {exchange}")
-                except ConnectionError as connection_error:
-                    print(f"FM Connection error: {connection_error} {exchange}")
-                except sqlite3.Error as sqlite3_error:
-                    print(f"FM SQLite3 error: {sqlite3_error} {exchange}")
-                except Exception as e:
-                    print(f"FM Exception: {e} {exchange}")
-                finally:
-                    if connection:
-                        connection.close()
+                    except Exception as e:
+                        print(f"FM cursor exception: {e} {exchange}")
 
     # TODO: each transaction we must know the total dollars spent
     def find_opportunities(self):
@@ -276,6 +287,7 @@ class Conductor:
                 bids: dict = {}
                 min_asks: dict = {}
                 max_bids: dict = {}
+                # TODO:         with sqlite3.connect(dgu.DB_NAME) as connection:
                 connection = sqlite3.connect(dgu.DB_NAME)
                 cursor = connection.cursor()
                 ask_query = """SELECT id, exchange, pair, MAX(timestamp), pennies FROM ask 
@@ -382,9 +394,10 @@ class Conductor:
                 print(f"MC Type error: {type_error}")
             except Exception as e:
                 print(f"MC Exception: {e}")
-            finally:
-                if connection:
-                    connection.close()
+
+    #            finally:
+    #                if connection:
+    #                    connection.close()
 
     def execute_trades(self):
         Thread(target=self.execute_trades_thread, args=("BUY",)).start()
@@ -400,57 +413,55 @@ class Conductor:
                 if not pair.upper().endswith("USD"):
                     raise Exception("Not implemented for non USD")
 
-                connection = sqlite3.connect(dgu.DB_NAME)
-                cursor = connection.cursor()
-                available_query = f"""SELECT available FROM wallet 
-                                        WHERE exchange == '{exchange}' AND symbol == '{symbol}' LIMIT 2"""
-                cursor.execute(available_query)
-                records = cursor.fetchall()
-                if len(records) == 1:
-                    available_pennies = int(records[0][0] * 100)
-                    return available_pennies > required_pennies
-                else:
-                    raise Exception(
-                        f"Buy DB error.  Multiple|missing wallet records for {symbol} @ {exchange} \n{records}"
-                    )
+                with threading.Lock():
+                    with sqlite3.connect(dgu.DB_NAME) as connection:
+                        cursor = connection.cursor()
+                        available_query = f"""SELECT available FROM wallet 
+                                                WHERE exchange == '{exchange}' AND symbol == '{symbol}' LIMIT 2"""
+                        cursor.execute(available_query)
+                        records = cursor.fetchall()
+                        if len(records) == 1:
+                            available_pennies = int(records[0][0] * 100)
+                            return available_pennies > required_pennies
+                        else:
+                            raise Exception(
+                                f"Buy DB error.  Multiple|missing wallet records for {symbol} @ {exchange} \n{records}"
+                            )
             except sqlite3.Error as sql_error:
                 print(f"Buy CheckFunding SQL error: {sql_error}")
             except TypeError as type_error:
                 print(f"Buy CheckFunding type error: {type_error}")
             except Exception as e:
                 print(f"Buy CheckFunding exception: {e}")
-            finally:
-                if connection:
-                    connection.close()
+        #            finally:
+        #                if connection:
+        #                    connection.close()
         else:
             if "SELL" == side.upper():
                 try:
                     symbol = pair.split("_")[0]
-                    connection = sqlite3.connect(dgu.DB_NAME)
-                    cursor = connection.cursor()
-                    available_query = f"""SELECT available FROM wallet 
-                                        WHERE exchange == '{exchange}' AND symbol == '{symbol}' LIMIT 2"""
-
-                    cursor.execute(available_query)
-                    records = cursor.fetchall()
-                    if len(records) == 0:
-                        print(f"None found {symbol} {exchange} ")
-                        return False
-                    if len(records) > 1:
-                        raise Exception(
-                            f"Sell DB error.  Multiple|missing wallet records for {symbol} @ {exchange} \n{records}"
-                        )
-                    available = records[0][0]
-                    return available > amount
+                    with threading.Lock():
+                        with sqlite3.connect(dgu.DB_NAME) as connection:
+                            cursor = connection.cursor()
+                            available_query = f"""SELECT available FROM wallet 
+                                                WHERE exchange == '{exchange}' AND symbol == '{symbol}' LIMIT 2"""
+                            cursor.execute(available_query)
+                            records = cursor.fetchall()
+                            if len(records) == 0:
+                                print(f"None found {symbol} {exchange} ")
+                                return False
+                            if len(records) > 1:
+                                raise Exception(
+                                    f"Sell DB error.  Multiple|missing wallet records for {symbol} @ {exchange} \n{records}"
+                                )
+                            available = records[0][0]
+                            return available > amount
                 except sqlite3.Error as sql_error:
                     print(f"Sell CheckFunding SQL error: {sql_error}")
                 except TypeError as type_error:
                     print(f"Sell CheckFunding type error: {type_error}")
                 except Exception as e:
                     print(f"Sell CheckFunding exception: {e}")
-                finally:
-                    if connection:
-                        connection.close()
         raise Exception(f"Unsupported side: {side}")
 
     def check_funding_and_trade(self, intent_id: int):
@@ -476,6 +487,7 @@ class Conductor:
             )
             cursor.execute(in_progress_intent_query)
             connection.commit()
+            cursor.close()
 
             intent_id = record[0]
             pair = record[1]
@@ -509,15 +521,17 @@ class Conductor:
                                         WHERE id == {intent_id}"""
                 cursor.execute(failed_query)
             connection.commit()
+            cursor.close()
         except sqlite3.Error as sql_error:
             print(f"ExBuy SQL error: {sql_error}")
         except TypeError as type_error:
             print(f"ExBuy type error: {type_error}")
         except Exception as e:
             print(f"ExBuy exception: {e}")
-        finally:
-            if connection:
-                connection.close()
+
+    #        finally:
+    #            if connection:
+    #                connection.close()
 
     def execute_trades_thread(self, side: str):
         while True:
@@ -546,9 +560,10 @@ class Conductor:
                 print(f"Execute trade type error: {type_error}")
             except Exception as e:
                 print(f"Execute trade exception: {e}")
-            finally:
-                if connection:
-                    connection.close()
+
+    #            finally:
+    #                if connection:
+    #                    connection.close()
 
     def grind(self):
         Thread(target=self.grind_thread).start()
@@ -559,7 +574,8 @@ class Conductor:
                 print("GRINDING...")
                 # take any wins that are available
                 self.win()
-
+                # stay liquid
+                self.sell_for_cash()
                 self.buy_smart()
                 # make intents for current purchase and future sale expecting fees 0.5% ($5/$1000)
                 # make intents long-lived
@@ -570,91 +586,191 @@ class Conductor:
                 time.sleep(2)
 
     def win(self):
-        connection = sqlite3.connect(dgu.DB_NAME)
-        cursor = connection.cursor()
-        cursor.execute(
-            f"""SELECT pair FROM win WHERE completed IS NULL AND in_progress IS NULL GROUP BY pair ORDER BY RANDOM()"""
-        )
-        winning_pairs = cursor.fetchall()
-        for p_row in winning_pairs:
-            pair = p_row[0]
-            win_query = f"""SELECT id, pair, order_locator, amount, limit_pennies FROM win 
-                                WHERE pair='{pair}' AND (NOT completed OR completed IS NULL) 
-                                AND (NOT in_progress OR in_progress IS NULL) 
-                                ORDER BY limit_pennies LIMIT 1"""
-            cursor.execute(win_query)
-            wins = cursor.fetchall()
-            if len(wins) == 1:
-                win = wins[0]
-                print(f"Next: {win}")
-                bid_query = f"""SELECT id, exchange, pair, MAX(datetime(timestamp)), pennies FROM bid 
-                                            WHERE pair='{pair}' GROUP BY exchange, pair ORDER BY pennies DESC LIMIT 5"""
-                # NOTE: we should get 1 record for each exchange
-                cursor.execute(bid_query)
-                bids = cursor.fetchall()
-                win_id = int(win[0])
-                amount = float(win[3])
-                limit_pennies = int(win[4])
-                for bid in bids:
-                    bid_pennies = bid[4]
-                    if bid_pennies >= limit_pennies:
-                        print(f"BID: {bid}")
-                        ex = bid[1]
-                        if self.check_funding("SELL", pair, ex, amount, limit_pennies):
-                            exchange: Exchange = self.exchanges[ex]
-                            limit = float(limit_pennies / 100.0)
-                            trade_result = exchange.trade(pair, "SELL", amount, limit)
-                            if trade_result is not None and {} != trade_result:
-                                order_locator = (
-                                    dgu.alphanumeric(str(trade_result))
-                                    + "_"
-                                    + dgu.alphanumeric(str(ex))
-                                )
-                                update_win = f"""UPDATE win SET completed=1, order_locator='{order_locator}' 
-                                                    WHERE ID={win_id}"""
-                                cursor.execute(update_win)
-                                connection.commit()
-                                cursor.close()
-                                print(
-                                    f"WIN!!!\nORDER: {order_locator}\nUPDATE WIN: {update_win}"
-                                )
-                                return
+        with threading.Lock():
+            with sqlite3.connect(dgu.DB_NAME) as connection:
+                cursor = connection.cursor()
+                cursor.execute(
+                    f"""SELECT pair FROM win WHERE completed IS NULL AND in_progress IS NULL GROUP BY pair ORDER BY RANDOM()"""
+                )
+                winning_pairs = cursor.fetchall()
+                for p_row in winning_pairs:
+                    pair = p_row[0]
+                    win_query = f"""SELECT id, pair, order_locator, amount, limit_pennies FROM win 
+                                    WHERE pair='{pair}' AND (NOT completed OR completed IS NULL) 
+                                    AND (NOT in_progress OR in_progress IS NULL) 
+                                    ORDER BY limit_pennies LIMIT 1"""
+                    cursor.execute(win_query)
+                    wins = cursor.fetchall()
+                    if len(wins) == 1:
+                        win = wins[0]
+                        win_id = int(win[0])
+                        amount = float(win[3])
+                        limit_pennies = int(win[4])
+
+                        bid_query = f"""SELECT id, exchange, pair, MAX(datetime(timestamp)), pennies FROM bid 
+                                                WHERE pair='{pair}' GROUP BY exchange, pair ORDER BY pennies DESC LIMIT 5"""
+                        # NOTE: we should get 1 record for each exchange
+                        cursor.execute(bid_query)
+                        bids = cursor.fetchall()
+
+                        if bids:
+                            diff_pennies = bids[0][4] - win[4]
+                            diff_pennies = -1 if diff_pennies == 0 else diff_pennies
+                            print(f"Next: {win} \t\t{diff_pennies:+g}")
+
+                        for bid in bids:
+                            bid_pennies = bid[4]
+                            if bid_pennies > limit_pennies:
+                                #                        print(f"BID: {bid}")
+                                ex = bid[1]
+                                if self.check_funding(
+                                    "SELL", pair, ex, amount, limit_pennies
+                                ):
+                                    exchange: Exchange = self.exchanges[ex]
+                                    limit = float(limit_pennies / 100.0)
+                                    trade_result = exchange.trade(
+                                        pair, "SELL", amount, limit
+                                    )
+                                    if trade_result is not None and {} != trade_result:
+                                        order_locator = (
+                                            dgu.alphanumeric(str(trade_result))
+                                            + "_"
+                                            + dgu.alphanumeric(str(ex))
+                                        )
+                                        update_win = f"""UPDATE win SET completed=1, order_locator='{order_locator}' 
+                                                            WHERE ID={win_id}"""
+                                        cursor.execute(update_win)
+                                        connection.commit()
+                                        cursor.close()
+                                        print(
+                                            f"WIN!!!\nORDER: {order_locator}\nUPDATE WIN: {update_win}"
+                                        )
+                                        self._next_buy_time = datetime.now(
+                                            tz=dgu.TZ_UTC
+                                        ) + timedelta(seconds=5)
+                                        return
+
+    def sell_for_cash(self):
+        for ex in self.exchanges.values():
+            balances = ex.balances
+            tickers = ex.tickers
+            usd = float(balances["USD"])
+            if (usd * 100) < (self.buy_pennies * 2):
+                # need to sell something for cash
+                print(f"LOW CASH: ${usd:2.2f} {type(ex)}")
+                assets = []
+                for b in balances:
+                    if b != "USD" and b != "BTC" and b != "ABT" and (balances[b] > 0.0):
+                        # is asset worth more than min buy?
+                        asset_pair = f"{b}_USD"
+                        bid = tickers[asset_pair]["BID"]
+                        if bid * balances[b] * 100 > self.buy_pennies:
+                            assets.append(b)
+
+                if len(assets) > 0:
+                    sell_this = random.choice(assets)
+                    pair = f"{sell_this}_USD"
+                    tic = tickers[pair]
+                    bal = balances[sell_this]
+                    print(f"BALANCE {bal}")
+                    amount = dgu.smart_round((self.buy_pennies) / (tic["BID"] * 100))
+                    limit = dgu.smart_round(tic["BID"] * 0.95)
+                    print(f"{pair} {tic} {amount} {limit}")
+                    sale = ex.trade(pair, "SELL", amount, limit)
+                    if sale:
+                        print("SALE")
+                        pprint.pprint(sale)
 
     def buy_smart(self):
         try:
-            # pick a product to buy
-            pair = dgu.BTC_USD_PAIR
-            amount = 0.0003
-
-            # select exchange from asks
-            connection = sqlite3.connect(dgu.DB_NAME)
-            cursor = connection.cursor()
-            cursor.execute(f"""SELECT exchange, pennies FROM ask WHERE pair=='{pair}' ORDER BY pennies ASC LIMIT 1""")
-            records = cursor.fetchall()
-            if len(records) != 1:
-                raise Exception(f"No ASK found for {pair}")
             if datetime.now(tz=dgu.TZ_UTC) < self._next_buy_time:
                 return
-            exchange = records[0][0]
-            limit_pennies = int(records[0][1] * 1.001)
-            limit = float(limit_pennies / 100.0)
-            if self.check_funding('BUY', pair, exchange, amount, limit_pennies):
-                ex = self.exchanges[exchange]
-                print(f"\nBest price exchange: {dgu.alphanumeric(str(type(ex)))} limit:{limit_pennies}")
-                # try to buy only at best exchange
-                t = ex.trade(pair, 'BUY', amount, float(f'{limit:0.2f}'))
-                if t is not None:
-                    print("Traded: ")
-                    pprint.pprint(t)
-                    win_pennies = dgu.round_to_nearest_hundred(int(limit_pennies * 1.006))
-                    # TODO: use fee estimate
-                    # record future win with fixed profit
-                    cursor.execute("""INSERT INTO win (pair, amount, limit_pennies) VALUES (?, ?, ?);""",
-                                   (pair, amount, win_pennies),
-                                   )
-                    connection.commit()
-                    cursor.close()
-                    self._next_buy_time = datetime.now(tz=dgu.TZ_UTC) + timedelta(seconds=600)
+            with threading.Lock():
+                with sqlite3.connect(dgu.DB_NAME) as connection:
+                    cursor = connection.cursor()
+                    avoid_buying_this = random.choice(["GALA", "FTM"])
+                    cursor.execute(
+                        f"""SELECT bid.pair, bid.pennies, 
+                        bid.pennies * wallet.available AS total_pennies
+                        FROM bid INNER JOIN wallet ON bid.pair = wallet.symbol || '_USD'
+                        WHERE wallet.symbol NOT IN ('SHIB', 'FLR', 'HBAR', '{avoid_buying_this}')
+                        ORDER BY total_pennies"""
+                    )
+
+                    records = cursor.fetchall()
+                    pair = dgu.BTC_USD_PAIR
+                    amount = 0.0000
+
+                    if records:
+                        pairs, bid_pennies, total_pennies = zip(*records)
+                        bid_pennies = np.array(bid_pennies)
+                        total_pennies = np.array(total_pennies)
+                        probabilities = total_pennies / total_pennies.sum()
+                        sampled_index = random.choices(
+                            range(len(pairs)), weights=probabilities
+                        )[0]
+
+                        # 10% just choose BTC
+                        sampled_index = (
+                            random.random() < 0.9
+                            and pairs.index(dgu.BTC_USD_PAIR)
+                            or sampled_index
+                        )
+
+                        pair = pairs[sampled_index]
+                        sampled_bid_pennies = bid_pennies[sampled_index]
+                        amount = (
+                            float(f"{(self.buy_pennies/sampled_bid_pennies):.5f}")
+                            if sampled_bid_pennies > 100
+                            else float(f"{(self.buy_pennies/sampled_bid_pennies):.0f}")
+                        )
+                    else:
+                        print("No wallet records???")
+                        return
+
+            print(f"Pair: {pair}\tamount: {amount:.5f}")
+            with threading.Lock():
+                with sqlite3.connect(dgu.DB_NAME) as connection:
+                    cursor = connection.cursor()
+                    cursor.execute(
+                        f"""SELECT exchange, pennies FROM ask WHERE pair=='{pair}' ORDER BY pennies ASC LIMIT 1"""
+                    )
+                    records = cursor.fetchall()
+                    if len(records) != 1:
+                        print(f"No ASK found for {pair}")
+                        return
+                    exchange = records[0][0]
+                    limit_pennies = int(records[0][1] * 1.001) + 1
+                    limit = float(limit_pennies / 100.0)
+                    print(f"Pair: {pair}\tamount: {amount:.5f}\tlimit: {limit}")
+                    if self.check_funding("BUY", pair, exchange, amount, limit_pennies):
+                        ex = self.exchanges[exchange]
+                        print(
+                            f"\nBest price exchange: {dgu.alphanumeric(str(type(ex)))} limit:{limit_pennies}"
+                        )
+                        # try to buy only at best exchange
+                        t = ex.trade(pair, "BUY", amount, float(f"{limit:0.2f}"))
+                        if t is not None:
+                            print("Traded: ")
+                            pprint.pprint(t)
+                            win_pennies = (
+                                dgu.round_to_nearest_hundred(
+                                    int(limit_pennies * 1.0055)
+                                )
+                                if limit_pennies > 10000
+                                else int(limit_pennies * 1.0055)
+                            )
+                            # TODO: use fee estimate
+                            # record future win with fixed profit
+                            cursor.execute(
+                                """INSERT INTO win (pair, amount, limit_pennies) VALUES (?, ?, ?);""",
+                                (pair, amount, win_pennies),
+                            )
+                            connection.commit()
+                            cursor.close()
+                            self._next_buy_time = datetime.now(
+                                tz=dgu.TZ_UTC
+                            ) + timedelta(seconds=59)
         except Exception as e:
             print("Buying exception: ")
             pprint.pprint(e)

@@ -65,14 +65,16 @@ class CoinbaseAdvancedExchange(Exchange):
             dgu.ZETA_USD_PAIR: "ZETA-USD",
         }
         # GALA not supported.
-        Thread(target=self.follow_market_thread).start()
+        Thread(target=self.follow_market_thread, daemon=True).start()
 
     def follow_market_thread(self):
         product_ids = []
         for v in self._supported_pairs.values():
             product_ids.append(v.upper())
 
-        asyncio.run(self.listen("wss://ws-feed.exchange.coinbase.com", product_ids))
+        while True:
+            result = asyncio.run(self.listen("wss://ws-feed.exchange.coinbase.com", product_ids))
+            print(result)
 
     async def listen(self, uri, product_ids):
         async with websockets.connect(uri) as websocket:
@@ -97,6 +99,7 @@ class CoinbaseAdvancedExchange(Exchange):
                         self._bids[symbol] = bid
                 except Exception as e:
                     print(f"CBA websocket error: {e}")
+                    return
 
     # https://docs.cloud.coinbase.com/advanced-trade-api/docs/sdk-rest-overview
     def _generate_jwt(self):
@@ -106,15 +109,26 @@ class CoinbaseAdvancedExchange(Exchange):
         jwt_token = jwt_generator.build_rest_jwt(jwt_uri, self._key, self._secret)
         return jwt_token
 
+
     @property
     def balances(self) -> dict:
         try:
             response = self.private_client.get_accounts()
+            all_accounts = []
+
+            # Loop until there are no more accounts
+            while response['has_next']:
+                all_accounts.extend(response['accounts'])
+                cursor = response['cursor']
+                response = self.private_client.get_accounts(cursor=cursor)
+
+            # Add the last batch of accounts (if any)
+            all_accounts.extend(response['accounts'])
             currencies = ["USD"]
             for dgu_pair in self._supported_pairs.keys():
                 currencies.append(str(dgu_pair.split("_")[0]).upper())
             balances = {}
-            for account in response["accounts"]:
+            for account in all_accounts:
                 currency = account["currency"]
                 if currency in currencies:
                     val = float(account["available_balance"]["value"])

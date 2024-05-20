@@ -1,0 +1,1 @@
+select * from win where pair = 'BTC_USD' and order_locator is null and in_progress is null and completed is null
