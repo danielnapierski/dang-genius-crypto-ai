@@ -113,6 +113,7 @@ class CoinbaseAdvancedExchange(Exchange):
     @property
     def balances(self) -> dict:
         try:
+            time.sleep(0.1)
             response = self.private_client.get_accounts()
             all_accounts = []
 
@@ -192,6 +193,7 @@ class CoinbaseAdvancedExchange(Exchange):
             base_size = f"{amount:.5f}"
             now = datetime.now(tz=dgu.TZ_UTC)
             end_time = now + timedelta(milliseconds=3001)
+# TODO: change to limit_order_ioc(
             order_response = self.private_client.limit_order_gtd(
                 client_order_id,
                 product_id,

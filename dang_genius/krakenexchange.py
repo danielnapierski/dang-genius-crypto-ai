@@ -63,7 +63,7 @@ class KrakenExchange(Exchange):
             dgu.OXT_USD_PAIR: "OXTUSD",
             dgu.QNT_USD_PAIR: "QNTUSD",
             dgu.REN_USD_PAIR: "RENUSD",
-            dgu.RNDR_USD_PAIR: "RNDRUSD",
+# ?            dgu.RNDR_USD_PAIR: "RNDRUSD",
             dgu.SHIB_USD_PAIR: "SHIBUSD",
             dgu.SNX_USD_PAIR: "SNXUSD",
             dgu.SOL_USD_PAIR: "SOLUSD",

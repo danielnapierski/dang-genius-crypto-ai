@@ -54,7 +54,9 @@ eval `ssh-agent`
 ssh-add
 ```
 
-### coinbase setup
+### Coinbase Setup
+
+Coinbase: https://advanced.coinbase.com/join/H6UJFLC
 
 See:
 https://developers.coinbase.com/api/v2
@@ -78,6 +80,8 @@ export CB-API-SECRET=Put-your-real-secret-here
 To check your coinbase API connection:
 `python ./coinbase-check.py`
 
+### Gemini Setup
+Gemini: https://www.gemini.com/share/elyl6gfe
 
 ### dang_genius package
 

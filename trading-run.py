@@ -24,14 +24,14 @@ cbe = CoinbaseAdvancedExchange(
 ge = GeminiExchange(os.environ.get("GE-API-KEY"), os.environ.get("GE-API-SECRET"))
 ke = KrakenExchange(os.environ.get("KR-API-KEY"), os.environ.get("KR-API-SECRET"))
 
-for ex in [be]:
+for ex in [cbe]:
     try:
         print(f"\nExchange: {dgu.alphanumeric(str(type(ex)))}")
         #        t = ex.trade(dgu.FET_USD_PAIR, 'BUY', 10, 2.64)
         #        t = ex.trade(dgu.GALA_USD_PAIR, 'BUY', 300, 0.072)
         #        t = ex.trade(dgu.RNDR_USD_PAIR, 'BUY', 5, 11.21)
 
-        t = ex.trade(dgu.BTC_USD_PAIR, "BUY", 0.0005, 65000.00)
+        t = ex.trade(dgu.BTC_USD_PAIR, "SELL", 0.0005, 60700.00)
         #t = ex.trade(dgu.ETH_USD_PAIR, 'BUY', 0.01, 3109.9)
         print("Trading: ")
         pprint.pprint(t)
